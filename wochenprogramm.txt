@@ -5,10 +5,10 @@ DO|Garten-AG|Terrasse|10:30
 FR|Kochen-AG|Kleiner Saal|12:00
 SA|Faschingsparty|Cafeteria|11:30
 SO|Gottesdienst|Kleiner Saal|10:00
-2026-W05 | MO | - | - | -
+2026-W05 | MO | Montags-Singen im Garten | - | -
 2026-W05 | DI | - | - | -
 2026-W05 | MI | - | - | -
 2026-W05 | DO | - | - | -
 2026-W05 | FR | - | - | -
 2026-W05 | SA | - | - | -
-2026-W05 | SO | - | - | -
+2026-W05 | SO | Sonntags-Tanztee im Festsaal | Kleiner Saal | -
