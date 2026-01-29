@@ -450,7 +450,7 @@
                 </div>
                 <div class="input-group">
                     <label for="event-image">Bilddatei:</label>
-                    <input type="text" id="event-image" placeholder="z.B. Faschingsparty.jpg">
+                    <input type="text" id="event-image" placeholder="z.B. Event.jpg">
                     <small>Bildname muss genau so heißen wie die hochgeladene Datei!</small>
                 </div>
                 <div class="input-group">
@@ -487,7 +487,7 @@
         const ADMIN_PASSWORD = "drk";
         const GITHUB_CONFIG = {
             owner: "l-sayginsoy",
-            repo: "melm-display",
+            repo: "drk-display",
             branch: "main"
         };
         const GITHUB_RAW_BASE = `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/`;
@@ -541,10 +541,13 @@
             currentWeekOffset += direction;
             updateCalendarHeader();
             generateWeekProgram();
-
-            if (window.savedProgramData) {
-                loadSavedDataIntoCalendar();
-            }
+            
+            // Lade gespeicherte Daten auch bei Navigation
+            setTimeout(() => {
+                if (window.savedProgramData) {
+                    loadSavedDataIntoCalendar();
+                }
+            }, 200);
         }
         
         function generateWeekProgram() {
@@ -589,7 +592,6 @@
                     <input type="time" id="time-${uniqueId}">
                     <input type="hidden" id="day-${uniqueId}" value="${dayStr}">
                     <input type="hidden" id="date-${uniqueId}" value="${dateStr}">
-                    <input type="hidden" id="key-${uniqueId}" value="${uniqueId}">
                 `;
                 container.appendChild(row);
             }
@@ -607,7 +609,14 @@
         }
 
         async function getGitHubToken() {
-            // Kein Token im Code - stattdessen zeigen wir die Daten zum Copy & Paste
+            const saved = sessionStorage.getItem("github_token");
+            if (saved && saved.trim()) return saved.trim();
+
+            const token = prompt("GitHub Token eingeben");
+            if (token && token.trim()) {
+                sessionStorage.setItem("github_token", token.trim());
+                return token.trim();
+            }
             return null;
         }
 
@@ -621,14 +630,13 @@
             }
         }
 
-        async function initToken() {
-            GITHUB_TOKEN = await getGitHubToken();
-            if (GITHUB_TOKEN) {
-                loadCurrentData();
-            } else {
-                showError('Token konnte nicht geladen werden.');
-            }
-        }
+       async function initToken() {
+    GITHUB_TOKEN = await getGitHubToken();
+    loadCurrentData();
+    if (!GITHUB_TOKEN) {
+        showSuccess('Kein Token gesetzt. Laden ist aktiv. Speichern zeigt Copy und Paste.');
+    }
+}
 
         function login() {
             const password = document.getElementById('password').value;
@@ -673,57 +681,26 @@
             }
         }
 
-        function toBase64Utf8(str) {
-            return btoa(unescape(encodeURIComponent(str)));
-        }
-
-        async function updateFileOnGitHub(filename, content, message) {
-            if (!GITHUB_TOKEN) throw new Error('Kein Token gesetzt');
-
-            const apiBase = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${filename}`;
-
-            // SHA holen (wenn Datei existiert)
-            let sha = null;
-            const getResp = await fetch(`${apiBase}?ref=${GITHUB_CONFIG.branch}`, {
-                headers: {
-                    'Authorization': `Bearer ${GITHUB_TOKEN}`,
-                    'Accept': 'application/vnd.github+json'
-                }
-            });
-
-            if (getResp.ok) {
-                const current = await getResp.json();
-                sha = current.sha;
-            } else if (getResp.status !== 404) {
-                const t = await getResp.text();
-                throw new Error('Datei laden fehlgeschlagen: ' + t);
+        async function triggerGitHubAction(filename, content, message) {
+            try {
+                const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/dispatches`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        event_type: 'update-dashboard',
+                        client_payload: { file: filename, content: content, message: message }
+                    })
+                });
+                if (!response.ok) throw new Error('Fehler');
+                return true;
+            } catch (e) {
+                throw e;
             }
-
-            const body = {
-                message: message || `Update ${filename}`,
-                content: toBase64Utf8(content),
-                branch: GITHUB_CONFIG.branch
-            };
-            if (sha) body.sha = sha;
-
-            const putResp = await fetch(apiBase, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${GITHUB_TOKEN}`,
-                    'Accept': 'application/vnd.github+json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(body)
-            });
-
-            if (!putResp.ok) {
-                const t = await putResp.text();
-                throw new Error('Speichern fehlgeschlagen: ' + t);
-            }
-
-            return true;
-        }
-
         }
 
         async function loadCurrentData() {
@@ -741,43 +718,29 @@
         }
         
         function loadWeeklyProgramData(text) {
+            // Speichere die geladenen Daten global für später
             window.savedProgramData = {};
-            const lines = text.trim().split('
-');
-
+            const lines = text.trim().split('\n');
+            
             lines.forEach(line => {
-                const parts = line.split('|');
-                // Neues Format: key|day|title|location|time|date
-                if (parts.length >= 6) {
-                    const [key, day, title, location, time, date] = parts;
-                    if (key && key.trim()) {
-                        window.savedProgramData[key.trim()] = {
-                            day: day ? day.trim() : '',
-                            title: title ? title.trim() : '',
-                            location: location ? location.trim() : '',
-                            time: time ? time.trim() : '',
-                            date: date ? date.trim() : ''
-                        };
-                    }
-                    return;
-                }
-
-                // Altes Format: day|title|location|time
-                const [dayOld, titleOld, locationOld, timeOld] = parts;
-                if (dayOld && dayOld.trim()) {
-                    // Wir speichern alte Daten unter dem Tag, werden sie aber nur als Fallback nutzen.
-                    window.savedProgramData[dayOld.trim()] = {
-                        day: dayOld.trim(),
-                        title: titleOld ? titleOld.trim() : '',
-                        location: locationOld ? locationOld.trim() : '',
-                        time: timeOld ? timeOld.trim() : ''
+                const [day, title, location, time] = line.split('|');
+                if (day && day.trim()) {
+                    window.savedProgramData[day.trim()] = {
+                        title: title ? title.trim() : '',
+                        location: location ? location.trim() : '',
+                        time: time ? time.trim() : ''
                     };
                 }
             });
-
-            loadSavedDataIntoCalendar();
+            
+            console.log('Loaded program data:', window.savedProgramData);
+            
+            // Warte bis die Kalenderansicht komplett geladen ist
+            setTimeout(() => {
+                loadSavedDataIntoCalendar();
+            }, 500); // Längere Verzögerung
         }
-
+        
         function loadSavedDataIntoCalendar() {
             if (!window.savedProgramData) return;
             
@@ -789,9 +752,7 @@
                 if (!dayInput) return;
                 
                 const dayKey = dayInput.value;
-                const keyInput = row.querySelector('input[id*="key-"]');
-                const key = keyInput ? keyInput.value : '';
-                const data = (key && window.savedProgramData[key]) ? window.savedProgramData[key] : window.savedProgramData[dayKey];
+                const data = window.savedProgramData[dayKey];
                 
                 if (data) {
                     console.log(`Loading data for ${dayKey}:`, data);
@@ -877,43 +838,17 @@
             btn.disabled = true;
             btn.textContent = '⏳ Speichert...';
             try {
+                // Radio button Wert lesen
                 const active = document.querySelector('input[name="event-active"]:checked').value;
                 const image = document.getElementById('event-image').value;
                 const start = document.getElementById('event-start').value;
                 const end = document.getElementById('event-end').value;
-
-                let content = `aktiv: ${active}
-`;
-                content += `bild: ${image}
-`;
-                content += `start: ${start ? new Date(start).toISOString().slice(0, 16) : ''}
-`;
+                let content = `aktiv: ${active}\n`;
+                content += `bild: ${image}\n`;
+                content += `start: ${start ? new Date(start).toISOString().slice(0, 16) : ''}\n`;
                 content += `ende: ${end ? new Date(end).toISOString().slice(0, 16) : ''}`;
-
-                if (GITHUB_TOKEN) {
-                    await updateFileOnGitHub('event.txt', content, 'Event aktualisiert');
-                    showSuccess('✅ Event gespeichert!');
-                    await loadCurrentData();
-                } else {
-                    const textarea = document.createElement('textarea');
-                    textarea.value = content;
-                    textarea.style.width = '100%';
-                    textarea.style.height = '160px';
-                    textarea.style.fontFamily = 'monospace';
-                    textarea.style.fontSize = '14px';
-                    textarea.style.marginTop = '10px';
-
-                    const msg = document.getElementById('success-msg');
-                    msg.innerHTML = `
-                        <strong>📋 Event Daten bereit zum Kopieren:</strong><br>
-                        Gehe zu GitHub → <code>event.txt</code> → Inhalt ersetzen:
-                    `;
-                    msg.appendChild(textarea);
-                    msg.style.display = 'block';
-
-                    textarea.select();
-                    setTimeout(() => msg.style.display = 'none', 30000);
-                }
+                await triggerGitHubAction('event.txt', content, 'Event aktualisiert');
+                showSuccess('✅ Event gespeichert!');
             } catch (e) {
                 showError('❌ Fehler: ' + e.message);
             } finally {
@@ -950,20 +885,14 @@
                         }
                         
                         const time = timeInput.value || '';
-                        const keyInput = row.querySelector('input[id*="key-"]');
-                        const key = keyInput ? keyInput.value : '';
-                        const dateInput = row.querySelector('input[id*="date-"]');
-                        const date = dateInput ? dateInput.value : '';
-                        content += `${key}|${day}|${title}|${location}|${time}|${date}
-`;
+                        content += `${day}|${title}|${location}|${time}\n`;
                     }
                 });
                 
                 if (GITHUB_TOKEN) {
                     // Automatisch speichern
-                    await updateFileOnGitHub('wochenprogramm.txt', content.trim(), 'Wochenprogramm aktualisiert');
+                    await triggerGitHubAction('wochenprogramm.txt', content.trim(), 'Wochenprogramm aktualisiert');
                     showSuccess('✅ Wochenprogramm gespeichert!');
-                    await loadCurrentData();
                 } else {
                     // Daten zum Copy & Paste anzeigen
                     const textarea = document.createElement('textarea');
