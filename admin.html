@@ -541,6 +541,13 @@
             currentWeekOffset += direction;
             updateCalendarHeader();
             generateWeekProgram();
+            
+            // Lade gespeicherte Daten auch bei Navigation
+            setTimeout(() => {
+                if (window.savedProgramData) {
+                    loadSavedDataIntoCalendar();
+                }
+            }, 200);
         }
         
         function generateWeekProgram() {
@@ -710,57 +717,78 @@
         }
         
         function loadWeeklyProgramData(text) {
-            // Speichere die geladenen Daten für später
+            // Speichere die geladenen Daten global für später
+            window.savedProgramData = {};
             const lines = text.trim().split('\n');
-            const programData = {};
             
             lines.forEach(line => {
                 const [day, title, location, time] = line.split('|');
                 if (day && day.trim()) {
-                    programData[day.trim()] = {
-                        title: title || '',
-                        location: location || '',
-                        time: time || ''
+                    window.savedProgramData[day.trim()] = {
+                        title: title ? title.trim() : '',
+                        location: location ? location.trim() : '',
+                        time: time ? time.trim() : ''
                     };
                 }
             });
             
-            // Lade die Daten in die aktuelle Kalenderansicht
+            console.log('Loaded program data:', window.savedProgramData);
+            
+            // Warte bis die Kalenderansicht komplett geladen ist
             setTimeout(() => {
-                const rows = document.querySelectorAll('#weekly-program .day-row');
-                rows.forEach(row => {
-                    const dayInput = row.querySelector('input[id*="day-"]');
-                    if (dayInput && programData[dayInput.value]) {
-                        const data = programData[dayInput.value];
-                        
-                        // Titel setzen
-                        const titleInput = row.querySelector('input[id*="title-"]');
-                        if (titleInput) titleInput.value = data.title;
-                        
-                        // Zeit setzen
-                        const timeInput = row.querySelector('input[id*="time-"]');
-                        if (timeInput) timeInput.value = data.time;
-                        
-                        // Ort setzen (Dropdown oder Custom)
-                        const locationSelect = row.querySelector('select[id*="location-"]');
-                        const customLocationInput = row.querySelector('input[id*="custom-location-"]');
-                        
-                        if (locationSelect && data.location) {
-                            // Prüfe ob der Ort im Dropdown existiert
-                            const option = Array.from(locationSelect.options).find(opt => opt.value === data.location);
-                            if (option) {
-                                locationSelect.value = data.location;
-                            } else {
-                                // Custom Ort
-                                locationSelect.value = 'Andere...';
+                loadSavedDataIntoCalendar();
+            }, 500); // Längere Verzögerung
+        }
+        
+        function loadSavedDataIntoCalendar() {
+            if (!window.savedProgramData) return;
+            
+            const rows = document.querySelectorAll('#weekly-program .day-row');
+            console.log('Found rows:', rows.length);
+            
+            rows.forEach((row, index) => {
+                const dayInput = row.querySelector('input[id*="day-"]');
+                if (!dayInput) return;
+                
+                const dayKey = dayInput.value;
+                const data = window.savedProgramData[dayKey];
+                
+                if (data) {
+                    console.log(`Loading data for ${dayKey}:`, data);
+                    
+                    // Titel setzen
+                    const titleInput = row.querySelector('input[id*="title-"]');
+                    if (titleInput) {
+                        titleInput.value = data.title;
+                    }
+                    
+                    // Zeit setzen
+                    const timeInput = row.querySelector('input[id*="time-"]');
+                    if (timeInput) {
+                        timeInput.value = data.time;
+                    }
+                    
+                    // Ort setzen (Dropdown oder Custom)
+                    const locationSelect = row.querySelector('select[id*="location-"]');
+                    const customLocationInput = row.querySelector('input[id*="custom-location-"]');
+                    
+                    if (locationSelect && data.location) {
+                        // Prüfe ob der Ort im Dropdown existiert
+                        const option = Array.from(locationSelect.options).find(opt => opt.value === data.location);
+                        if (option) {
+                            locationSelect.value = data.location;
+                        } else {
+                            // Custom Ort
+                            locationSelect.value = 'Andere...';
+                            if (customLocationInput) {
                                 locationSelect.style.display = 'none';
                                 customLocationInput.style.display = 'block';
                                 customLocationInput.value = data.location;
                             }
                         }
                     }
-                });
-            }, 100); // Kurze Verzögerung damit die Kalenderansicht geladen ist
+                }
+            });
         }
 
         function parseEventData(text) {
