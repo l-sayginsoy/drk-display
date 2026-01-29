@@ -21,7 +21,8 @@ const App: React.FC = () => {
     const isDaylightTime = hours >= 7 && hours < 19;
     
     if (weather) {
-      return weather.isDay || isDaylightTime;
+      // Wenn die API 'Nacht' sagt, vertrauen wir ihr (berücksichtigt Sonnenuntergang genau)
+      return weather.isDay;
     }
     return isDaylightTime;
   }, [time.getHours(), weather?.isDay]);
@@ -98,8 +99,8 @@ const App: React.FC = () => {
   }, [updateAllData, fetchWeather]);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden text-white font-['Inter'] bg-transparent">
-      {/* Wetterhintergrund - code undefined führt zu neutralem Start-Gradient */}
+    <div className="relative h-screen w-screen overflow-hidden text-white font-['Inter'] bg-slate-950">
+      {/* Wetterhintergrund mit professional Environmental Engine */}
       <WeatherBackground code={weather?.code} isDay={currentIsDay} />
 
       <header className="relative h-[12vh] flex items-end px-[4vw] pb-[2vh] z-10">

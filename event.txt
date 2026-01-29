@@ -1,0 +1,4 @@
+aktiv: nein
+bild: Faschingsparty.jpg
+start: 2026-01-20T17:08
+ende: 2026-01-24T17:15

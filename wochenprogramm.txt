@@ -1,0 +1,7 @@
+MO|Erzählcafe|Cafeteria|14:30
+DI|Einzelbetreuung|Wohnbereich|14:30
+MI|Wunschkonzert|Cafeteria|15:00
+DO|Garten-AG|Terrasse|10:30
+FR|Kochen-AG|Kleiner Saal|12:00
+SA|Faschingsparty|Cafeteria|11:30
+SO|Gottesdienst|Kleiner Saal|10:00
