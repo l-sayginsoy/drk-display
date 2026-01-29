@@ -2,159 +2,237 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>DRK Admin - SICHERHEITS MODUS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRK Dashboard - Admin Panel</title>
     <style>
-        body { font-family: sans-serif; background: #f0f0f0; padding: 20px; }
-        .container { background: white; max-width: 800px; margin: 0 auto; padding: 20px; border-radius: 8px; border: 2px solid #d7191f; }
-        h1 { color: #d7191f; margin-top: 0; }
-        .week-nav { background: #eee; padding: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-radius: 5px; }
-        .day-row { display: grid; grid-template-columns: 80px 1fr 1fr 100px; gap: 10px; padding: 10px 0; border-bottom: 1px solid #ddd; }
-        input { padding: 8px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
-        .btn { padding: 10px 20px; font-weight: bold; cursor: pointer; border: none; border-radius: 4px; }
-        .btn-save { background: #28a745; color: white; width: 100%; margin-top: 20px; font-size: 1.1em; }
-        .btn-nav { background: #d7191f; color: white; }
-        #status-box { margin-top: 15px; padding: 10px; font-size: 13px; background: #fff3f3; border: 1px solid #ffcccc; display: block; }
+        /* Grunddesign */
+        body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+        .card { max-width: 800px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1 { color: #d7191f; font-size: 22px; margin-top: 0; display: flex; align-items: center; gap: 10px; }
+        
+        /* Login */
+        #login-screen { position: fixed; inset: 0; background: #f0f2f5; display: flex; align-items: center; justify-content: center; z-index: 2000; }
+        .login-box { background: white; padding: 30px; border-radius: 12px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 320px; }
+        
+        /* Wochen-Navigation */
+        .nav-bar { display: flex; justify-content: space-between; align-items: center; background: #eee; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+        .nav-btn { background: #d7191f; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .nav-btn:disabled { background: #ccc; }
+        
+        /* Eingabemaske */
+        .day-row { display: grid; grid-template-columns: 70px 1fr 1fr 100px; gap: 10px; padding: 12px 0; border-bottom: 1px solid #eee; align-items: center; }
+        .day-label { font-weight: bold; color: #d7191f; }
+        input, select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 100%; font-size: 14px; }
+        
+        /* Status */
+        .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.7); z-index: 1500; align-items: center; justify-content: center; font-weight: bold; }
+        .btn-save { background: #28a745; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 20px; }
+        .btn-save:hover { background: #218838; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <img src="https://raw.githubusercontent.com/l-sayginsoy/drk-display/main/DRK-Logo_lang_RGB.png" width="150">
-        <h1>Wochen-Planer</h1>
-
-        <div id="status-box">Status: System bereit. Bitte Passwort eingeben.</div>
-
-        <div id="login-section">
-            <p>Passwort: <input type="password" id="pass" style="width:150px"> 
-            <button class="btn btn-nav" onclick="login()">Anmelden</button></p>
-        </div>
-
-        <div id="main-ui" style="display:none;">
-            <div class="week-nav">
-                <button class="btn btn-nav" onclick="moveWeek(-1)">◀ Letzte Woche</button>
-                <div style="text-align:center">
-                    <strong id="label-week">KW --</strong><br>
-                    <span id="label-date">--</span>
-                </div>
-                <button class="btn btn-nav" onclick="moveWeek(1)">Nächste Woche ▶</button>
-            </div>
-
-            <div id="editor">
-                </div>
-
-            <button class="btn btn-save" onclick="save()">Planung permanent speichern</button>
-            <p style="text-align:center; font-size:11px; color:gray;">
-                Nach dem Speichern dauert es ca. 30 Sek. bis das Display sich aktualisiert.
-            </p>
+    <div id="login-screen">
+        <div class="login-box">
+            <img src="https://raw.githubusercontent.com/l-sayginsoy/drk-display/main/DRK-Logo_lang_RGB.png" width="180" alt="DRK Logo"><br><br>
+            <input type="password" id="pass-input" placeholder="Admin-Passwort" style="margin-bottom:10px; text-align:center;"><br>
+            <button class="btn-save" style="margin-top:0" onclick="handleLogin()">Anmelden</button>
         </div>
     </div>
 
+    <div id="admin-ui" style="display:none">
+        <div class="card">
+            <h1>DRK Melm - Wochenplanung</h1>
+            
+            <div class="nav-bar">
+                <button class="nav-btn" onclick="changeWeek(-1)">◀</button>
+                <div style="text-align:center">
+                    <strong id="display-month">Monat</strong><br>
+                    <small>Kalenderwoche <span id="display-week">--</span></small>
+                </div>
+                <button class="nav-btn" onclick="changeWeek(1)">▶</button>
+            </div>
+
+            <div id="program-list">
+                </div>
+
+            <button id="save-btn" class="btn-save" onclick="saveData()">Planung permanent speichern</button>
+            <p style="font-size: 11px; color: #666; text-align: center; margin-top: 10px;">
+                Hinweis: Nach dem Speichern dauert es ca. 30 Sek. bis GitHub die Daten verarbeitet hat.
+            </p>
+            <button onclick="logout()" style="background:none; border:none; color:#999; cursor:pointer; width:100%; margin-top:20px; font-size:12px;">Abmelden</button>
+        </div>
+    </div>
+
+    <div id="loader" class="loading-overlay">Daten werden synchronisiert...</div>
+
     <script>
-        const REPO = "l-sayginsoy/drk-display";
-        const FILE = "wochenprogramm.txt";
-        let db = {}; 
+        const CONFIG = {
+            owner: "l-sayginsoy",
+            repo: "drk-display",
+            tokenKey: "drk_gh_token",
+            file: "wochenprogramm.txt"
+        };
+
         let currentOffset = 0;
-        let ghToken = localStorage.getItem("drk_token");
+        let db = {}; // Lokaler Speicher für alle Wochen
 
-        function setStatus(msg) {
-            document.getElementById("status-box").innerText = "Status: " + msg;
+        // 1. Initialisierung & Login
+        window.onload = () => {
+            if (sessionStorage.getItem("logged_in") === "true") {
+                showAdmin();
+            }
+        };
+
+        function handleLogin() {
+            const pass = document.getElementById("pass-input").value;
+            if (pass === "drk") {
+                sessionStorage.setItem("logged_in", "true");
+                showAdmin();
+            } else {
+                alert("Passwort falsch!");
+            }
         }
 
-        function login() {
-            if (document.getElementById("pass").value === "drk") {
-                document.getElementById("login-section").style.display = "none";
-                document.getElementById("main-ui").style.display = "block";
-                if (!ghToken) {
-                    ghToken = prompt("GitHub Token eingeben:");
-                    if (ghToken) localStorage.setItem("drk_token", ghToken);
-                }
-                loadFromGitHub();
-            } else { alert("Falsches Passwort!"); }
+        async function showAdmin() {
+            document.getElementById("login-screen").style.display = "none";
+            document.getElementById("admin-ui").style.display = "block";
+            
+            // GitHub Token prüfen
+            let token = localStorage.getItem(CONFIG.tokenKey);
+            if (!token) {
+                token = prompt("Bitte GitHub Personal Access Token eingeben:");
+                if (token) localStorage.setItem(CONFIG.tokenKey, token);
+            }
+            
+            await fetchFromGitHub();
+            renderWeek();
         }
 
-        function getWeekKey(offset) {
-            let d = new Date();
+        // 2. Kalender-Logik (Zukunftssicher)
+        function getWeekDetails(offset) {
+            const d = new Date();
             d.setDate(d.getDate() + (offset * 7));
             d.setHours(0,0,0,0);
-            d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-            let year = d.getFullYear();
-            let week = Math.ceil((((d - new Date(year, 0, 1)) / 86400000) + 1) / 7);
-            return year + "-W" + week.toString().padStart(2, '0');
+            // ISO Woche berechnen
+            const dayNum = d.getDay() || 7;
+            d.setDate(d.getDate() + 4 - dayNum);
+            const year = d.getFullYear();
+            const week = Math.ceil((((d - new Date(year, 0, 1)) / 86400000) + 1) / 7);
+            const monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+            return {
+                week: week,
+                year: year,
+                month: monthNames[d.getMonth()],
+                key: `${year}-W${week.toString().padStart(2, '0')}`
+            };
         }
 
-        async function loadFromGitHub() {
-            setStatus("Lade Daten...");
+        function renderWeek() {
+            const info = getWeekDetails(currentOffset);
+            document.getElementById("display-month").textContent = `${info.month} ${info.year}`;
+            document.getElementById("display-week").textContent = info.week;
+
+            const days = ["MO", "DI", "MI", "DO", "FR", "SA", "SO"];
+            const container = document.getElementById("program-list");
+            container.innerHTML = "";
+
+            days.forEach(day => {
+                const id = `${info.key}-${day}`;
+                const entry = db[id] || { title: "", loc: "", time: "" };
+                
+                const row = document.createElement("div");
+                row.className = "day-row";
+                row.innerHTML = `
+                    <div class="day-label">${day}</div>
+                    <input type="text" class="in-t" data-id="${id}" value="${entry.title}" placeholder="Was findet statt?">
+                    <input type="text" class="in-l" data-id="${id}" value="${entry.loc}" placeholder="Ort">
+                    <input type="time" class="in-h" data-id="${id}" value="${entry.time}">
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function changeWeek(dir) {
+            syncToMemory(); // Aktuelle Eingaben merken
+            currentOffset += dir;
+            renderWeek();
+        }
+
+        // 3. Daten-Management
+        function syncToMemory() {
+            document.querySelectorAll(".day-row").forEach(row => {
+                const title = row.querySelector(".in-t");
+                const id = title.dataset.id;
+                const loc = row.querySelector(".in-l").value;
+                const time = row.querySelector(".in-h").value;
+                const day = row.querySelector(".day-label").textContent;
+
+                if (title.value || loc || time) {
+                    db[id] = { day, title: title.value, loc, time };
+                } else {
+                    delete db[id];
+                }
+            });
+        }
+
+        async function fetchFromGitHub() {
+            toggleLoader(true);
             try {
-                const url = `https://raw.githubusercontent.com/${REPO}/main/${FILE}?t=${Date.now()}`;
+                const url = `https://raw.githubusercontent.com/${CONFIG.owner}/${CONFIG.repo}/main/${CONFIG.file}?t=${Date.now()}`;
                 const r = await fetch(url);
                 if (r.ok) {
                     const text = await r.text();
                     db = {};
                     text.split("\n").forEach(line => {
-                        const [id, day, tit, loc, tim] = line.split("|");
-                        if (id && id.includes("-W")) db[id] = { day, tit, loc, tim };
+                        const [id, day, title, loc, time] = line.split("|");
+                        if (id && id.includes("-W")) db[id] = { day, title, loc, time };
                     });
-                    setStatus("Daten geladen.");
-                } else { setStatus("Datei noch leer oder neu."); }
-                render();
-            } catch (e) { setStatus("Fehler: " + e.message); }
+                }
+            } catch (e) { console.error("Download Error", e); }
+            toggleLoader(false);
         }
 
-        function render() {
-            const weekKey = getWeekKey(currentOffset);
-            document.getElementById("label-week").innerText = "Woche: " + weekKey;
-            
-            const days = ["MO", "DI", "MI", "DO", "FR", "SA", "SO"];
-            const cont = document.getElementById("editor");
-            cont.innerHTML = "";
+        async function saveData() {
+            syncToMemory();
+            const token = localStorage.getItem(CONFIG.tokenKey);
+            if (!token) return alert("Kein GitHub Token vorhanden!");
 
-            days.forEach(d => {
-                const id = weekKey + "-" + d;
-                const row = db[id] || { tit: "", loc: "", tim: "" };
-                cont.innerHTML += `
-                    <div class="day-row">
-                        <strong>${d}</strong>
-                        <input type="text" class="in-t" data-id="${id}" value="${row.tit}" placeholder="Programm">
-                        <input type="text" class="in-l" data-id="${id}" value="${row.loc}" placeholder="Ort">
-                        <input type="time" class="in-h" data-id="${id}" value="${row.tim}">
-                    </div>
-                `;
-            });
-        }
+            toggleLoader(true);
+            const btn = document.getElementById("save-btn");
+            btn.disabled = true;
 
-        function moveWeek(dir) {
-            saveToMemory();
-            currentOffset += dir;
-            render();
-        }
-
-        function saveToMemory() {
-            document.querySelectorAll(".in-t").forEach(el => {
-                const id = el.dataset.id;
-                const row = el.parentElement;
-                const tit = el.value;
-                const loc = row.querySelector(".in-l").value;
-                const tim = row.querySelector(".in-h").value;
-                const day = row.querySelector("strong").innerText;
-                if (tit || loc || tim) db[id] = { day, tit, loc, tim };
-                else delete db[id];
-            });
-        }
-
-        async function save() {
-            saveToMemory();
-            setStatus("Speichere auf GitHub...");
-            const content = Object.keys(db).map(k => `${k}|${db.day}|${db.tit}|${db.loc}|${db.tim}`).join("\n");
+            // Datei-Inhalt bauen
+            const content = Object.keys(db)
+                .map(id => `${id}|${db[id].day}|${db[id].title}|${db[id].loc}|${db[id].time}`)
+                .join("\n");
 
             try {
-                const r = await fetch(`https://api.github.com/repos/${REPO}/dispatches`, {
+                const url = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/dispatches`;
+                const resp = await fetch(url, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ event_type: 'update-dashboard', client_payload: { file: FILE, content: content } })
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        event_type: 'update-dashboard', 
+                        client_payload: { file: CONFIG.file, content: content, message: 'Admin Planung Update' } 
+                    })
                 });
-                if (r.ok) { alert("Gespeichert!"); setStatus("Erfolgreich gespeichert."); }
-                else { alert("GitHub Fehler! Token prüfen."); setStatus("Fehler beim Senden."); }
+
+                if (resp.ok) alert("✅ Erfolgreich an GitHub gesendet!");
+                else alert("❌ Fehler beim Senden an GitHub.");
             } catch (e) { alert("Fehler: " + e.message); }
+
+            btn.disabled = false;
+            toggleLoader(false);
+        }
+
+        function toggleLoader(show) {
+            document.getElementById("loader").style.display = show ? "flex" : "none";
+        }
+
+        function logout() {
+            sessionStorage.clear();
+            location.reload();
         }
     </script>
 </body>
