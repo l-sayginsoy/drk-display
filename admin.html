@@ -450,7 +450,7 @@
                 </div>
                 <div class="input-group">
                     <label for="event-image">Bilddatei:</label>
-                    <input type="text" id="event-image" placeholder="z.B. Faschingsparty.jpg">
+                    <input type="text" id="event-image" placeholder="z.B. Event.jpg">
                     <small>Bildname muss genau so heißen wie die hochgeladene Datei!</small>
                 </div>
                 <div class="input-group">
@@ -630,13 +630,13 @@
             }
         }
 
-        async function initToken() {
-            GITHUB_TOKEN = await getGitHubToken();
-            loadCurrentData();
-        } else {
-                showError('Token konnte nicht geladen werden.');
-            }
-        }
+       async function initToken() {
+    GITHUB_TOKEN = await getGitHubToken();
+    loadCurrentData();
+    if (!GITHUB_TOKEN) {
+        showSuccess('Kein Token gesetzt. Laden ist aktiv. Speichern zeigt Copy und Paste.');
+    }
+}
 
         function login() {
             const password = document.getElementById('password').value;
