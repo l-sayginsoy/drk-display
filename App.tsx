@@ -1,173 +1,154 @@
+import React, { useState, useEffect } from 'react';
+import { Clock, Calendar, MapPin, Info, Bell } from 'lucide-react';
+import { WeeklyActivity, EventConfig } from './types';
+import { getGitHubConfig, fetchFileFromGitHub } from './githubService';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import WeatherBackground from './components/WeatherBackground';
-import WeeklyProgram from './components/WeeklyProgram';
-import MealDisplay from './components/MealDisplay';
-import { fetchEventOverride, fetchWeeklyProgram, fetchQuote } from './dataService';
-import { WeeklyProgram as IWeeklyProgram, EventOverride, WeatherData } from './types';
-import { mapWeatherCode, GITHUB_RAW_BASE } from './constants';
-
-const App: React.FC = () => {
+export default function App() {
+  const [activities, setActivities] = useState<WeeklyActivity[]>([]);
+  const [event, setEvent] = useState<EventConfig | null>(null);
+  const [loading, setLoading] = useState(true);
   const [time, setTime] = useState(new Date());
-  const [programs, setPrograms] = useState<IWeeklyProgram[]>([]);
-  const [override, setOverride] = useState<EventOverride | null>(null);
-  const [quote, setQuote] = useState("Willkommen im DRK Melm.");
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [logoError, setLogoError] = useState(false);
 
-  const currentIsDay = useMemo(() => {
-    if (weather) return weather.isDay;
-    const hours = time.getHours();
-    return hours >= 7 && hours < 19;
-  }, [time, weather]);
-
-  const updateAllData = useCallback(async () => {
-    try {
-      const [p, o, q] = await Promise.all([
-        fetchWeeklyProgram(),
-        fetchEventOverride(),
-        fetchQuote()
-      ]);
-      setPrograms(p || []);
-      setOverride(o);
-      if (q) setQuote(q);
-    } catch (err) {
-      console.error("Daten-Update Fehler:", err);
-    }
-  }, []);
-
-  const fetchWeather = useCallback(async () => {
-    try {
-      const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=49.49&longitude=8.38&current=temperature_2m,is_day,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Europe/Berlin&forecast_days=4');
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      if (data.current && data.daily) {
-        const { condition } = mapWeatherCode(data.current.weather_code);
-        const forecast = [];
-        const days = ['SO', 'MO', 'DI', 'MI', 'DO', 'FR', 'SA'];
-        for (let i = 1; i <= 3; i++) {
-          const d = new Date(); d.setDate(d.getDate() + i);
-          forecast.push({
-            day: days[d.getDay()],
-            icon: mapWeatherCode(data.daily.weather_code[i]).icon,
-            max: Math.round(data.daily.temperature_2m_max[i]),
-            min: Math.round(data.daily.temperature_2m_min[i])
-          });
-        }
-        setWeather({
-          temp: Math.round(data.current.temperature_2m),
-          code: data.current.weather_code,
-          isDay: data.current.is_day === 1,
-          condition,
-          max: Math.round(data.daily.temperature_2m_max[0]),
-          min: Math.round(data.daily.temperature_2m_min[0]),
-          forecast
-        });
-      }
-    } catch (e) {
-      console.error("Wetter-Fehler:", e);
-    }
+  // Uhrzeit-Update jede Sekunde
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
-    updateAllData();
-    fetchWeather();
-    const tInterval = setInterval(() => setTime(new Date()), 1000);
-    const dInterval = setInterval(updateAllData, 300000);
-    const wInterval = setInterval(fetchWeather, 900000);
-    return () => { clearInterval(tInterval); clearInterval(dInterval); clearInterval(wInterval); };
-  }, [updateAllData, fetchWeather]);
+    const loadData = async () => {
+      const config = getGitHubConfig();
+      if (!config) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Wochenplan laden
+        const prog = await fetchFileFromGitHub(config);
+        if (prog.content) {
+          const todayStr = ['SO', 'MO', 'DI', 'MI', 'DO', 'FR', 'SA'][new Date().getDay()];
+          const lines = prog.content.split('\n');
+          const todayActivities = lines
+            .map(l => l.split('|').map(s => s.trim()))
+            .filter(parts => parts === todayStr)
+            .map((parts, i) => ({
+              id: String(i),
+              day: parts,
+              title: parts,
+              location: parts,
+              time: parts
+            }));
+          setActivities(todayActivities);
+        }
+
+        // Event laden
+        const evRes = await fetchFileFromGitHub(config, 'event.json');
+        if (evRes.content) setEvent(JSON.parse(evRes.content));
+      } catch (e) {
+        console.error("Fehler beim Laden der Bewohner-Ansicht", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+    // Alle 5 Minuten aktualisieren
+    const interval = setInterval(loadData, 300000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="h-screen bg-slate-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-red-600"></div>
+      </div>
+    );
+  }
+
+  // Event-Overlay wenn aktiv
+  if (event?.active) {
+    const now = new Date();
+    const isRunning = (!event.start || new Date(event.start) <= now) && (!event.end || new Date(event.end) >= now);
+    
+    if (isRunning) {
+      return (
+        <div className="h-screen w-screen bg-black relative overflow-hidden flex items-center justify-center">
+          <img src={event.image} alt="Event" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+          <div className="relative z-10 text-center text-white p-10 bg-black/40 backdrop-blur-md rounded-[4rem] border-4 border-white/20">
+            <Bell size={120} className="mx-auto mb-8 text-yellow-400 animate-bounce" />
+            <h1 className="text-8xl font-black uppercase tracking-tighter mb-4">Besonderes Event</h1>
+            <p className="text-3xl font-bold opacity-80 uppercase tracking-widest">Bitte beachten Sie die Aushänge</p>
+          </div>
+        </div>
+      );
+    }
+  }
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden text-white font-['Inter'] flex flex-col bg-slate-950">
-      {/* Environmental Engine Background */}
-      <WeatherBackground code={weather?.code} isDay={currentIsDay} />
-
-      {/* Header - Bleibt bei 15vh für den Abstand nach oben */}
-      <header className="h-[15vh] flex items-end px-[4vw] pb-[3vh] shrink-0 z-20">
-        <div className="flex items-center gap-6 drop-shadow-2xl">
-          <span className="text-[8vh] font-[900] tracking-tighter tabular-nums leading-none">
+    <div className="h-screen bg-[#f8fafc] flex flex-col overflow-hidden">
+      {/* Header */}
+      <header className="bg-red-600 text-white p-12 flex justify-between items-center shadow-2xl relative z-10">
+        <div className="flex items-center gap-10">
+          <div className="bg-white p-6 rounded-3xl shadow-lg">
+            <div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center text-white font-black text-2xl">DRK</div>
+          </div>
+          <div>
+            <h1 className="text-6xl font-black tracking-tighter uppercase leading-none">Willkommen im Haus</h1>
+            <p className="text-2xl font-bold opacity-80 mt-2 uppercase tracking-[0.2em]">Seniorenzentrum</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-8xl font-black tracking-tighter leading-none">
             {time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
-          </span>
-          <div className="h-[5vh] w-0.5 bg-white/30"></div>
-          <div className="flex flex-col">
-            <span className="text-[3.2vh] font-black uppercase tracking-tighter leading-none">
-              {time.toLocaleDateString('de-DE', { weekday: 'long' })}
-            </span>
-            <span className="text-[1.8vh] font-bold text-white/70 uppercase tracking-widest mt-1">
-              {time.toLocaleDateString('de-DE', { day: '2-digit', month: 'long' })}
-            </span>
+          </div>
+          <div className="text-2xl font-bold opacity-80 uppercase mt-2">
+            {time.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' })}
           </div>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex px-[4vw] py-[2vh] gap-[3vw] min-h-0 z-10">
-        {/* MealDisplay auf flex-[2.2] angepasst (Mittelweg zwischen 1.6 und 3) */}
-        <div className="flex-[2.2] h-full overflow-hidden">
-          <MealDisplay override={override} />
-        </div>
-        {/* WeeklyProgram flex-[1] belassen */}
-        <div className="flex-[1] h-full overflow-hidden">
-          <WeeklyProgram programs={programs} />
-        </div>
+      {/* Main Content */}
+      <main className="flex-1 p-16 grid grid-cols-1 gap-12 overflow-y-auto">
+        <section>
+          <div className="flex items-center gap-6 mb-12">
+            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center">
+              <Calendar size={40} />
+            </div>
+            <h2 className="text-5xl font-black text-slate-900 uppercase tracking-tighter">Heute im Programm</h2>
+          </div>
+
+          {activities.length === 0 ? (
+            <div className="bg-white rounded-[3rem] p-20 text-center shadow-xl border-4 border-slate-100">
+              <Info size={80} className="mx-auto text-slate-200 mb-6" />
+              <p className="text-4xl font-bold text-slate-400 italic">Für heute sind keine Aktivitäten geplant.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-8">
+              {activities.map((act) => (
+                <div key={act.id} className="bg-white rounded-[3.5rem] p-10 shadow-xl flex items-center gap-12 border-l-[24px] border-red-600 transform hover:scale-[1.01] transition-transform">
+                  <div className="text-6xl font-black text-slate-900 w-48 shrink-0 flex items-center gap-4">
+                    <Clock size={48} className="text-red-600" />
+                    {act.time}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-6xl font-black text-slate-900 tracking-tight mb-2">{act.title}</h3>
+                    <div className="flex items-center gap-4 text-3xl font-bold text-slate-400 uppercase tracking-widest">
+                      <MapPin size={32} className="text-red-400" />
+                      {act.location}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </main>
 
-      {/* Footer (Absolute White Bar) */}
-      <footer className="h-[10vh] bg-white text-slate-900 flex items-center justify-between px-[4vw] shrink-0 z-[100] shadow-[0_-15px_40px_rgba(0,0,0,0.3)] border-t border-slate-100">
-        {/* Weather Block */}
-        <div className="w-[30%] flex items-center shrink-0">
-          {weather ? (
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-3">
-                <span className="text-[5.5vh] leading-none drop-shadow-sm">{mapWeatherCode(weather.code).icon}</span>
-                <div className="flex flex-col">
-                  <span className="text-[4.2vh] font-black leading-none tabular-nums text-slate-900">{weather.temp}°</span>
-                  <span className="text-[1.1vh] font-bold text-slate-400 uppercase tracking-widest mt-1">Ludwigshafen</span>
-                </div>
-              </div>
-              <div className="h-[4.5vh] w-px bg-slate-200"></div>
-              <div className="flex gap-5">
-                {weather.forecast.map((f, i) => (
-                  <div key={i} className="flex flex-col items-center">
-                    <span className="text-[1vh] font-black text-slate-400 uppercase leading-none mb-1">{f.day}</span>
-                    <span className="text-[2.2vh] leading-none mb-1">{f.icon}</span>
-                    <span className="text-[1.8vh] font-black text-slate-900 leading-none tabular-nums">{f.max}°</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="animate-pulse flex items-center gap-3 text-slate-300">
-              <div className="w-8 h-8 rounded-full bg-slate-100"></div>
-              <span className="text-[1.5vh] font-bold uppercase">Wetter lädt...</span>
-            </div>
-          )}
-        </div>
-
-        {/* Quote Block */}
-        <div className="flex-1 px-10 text-center flex items-center justify-center">
-          <p className="text-[2.2vh] font-bold italic text-slate-500 leading-tight line-clamp-2 max-w-[45vw]">
-            "{quote}"
-          </p>
-        </div>
-
-        {/* Logo Block */}
-        <div className="w-[25%] flex justify-end items-center shrink-0">
-          {!logoError ? (
-            <img 
-              src={`${GITHUB_RAW_BASE}DRK-Logo_lang_RGB.png`} 
-              alt="DRK Logo" 
-              className="h-[3.8vh] w-auto object-contain"
-              onError={() => setLogoError(true)}
-            />
-          ) : (
-            <span className="text-[2.8vh] font-black text-red-600 uppercase tracking-tighter">DRK MELM</span>
-          )}
-        </div>
+      {/* Footer Info */}
+      <footer className="bg-slate-900 text-white p-8 text-center text-xl font-bold uppercase tracking-[0.5em] opacity-40">
+        Deutsches Rotes Kreuz • Gemeinsam statt einsam
       </footer>
     </div>
   );
-};
-
-export default App;
+}
