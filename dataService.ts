@@ -7,17 +7,17 @@ export const fetchEventOverride = async (): Promise<EventOverride | null> => {
     const response = await fetch(`${GITHUB_FILES.event}?t=${Date.now()}`);
     if (!response.ok) return null;
     const text = await response.text();
-    const lines = text.trim().split('\n');
+    const lines = text.replace(/\r/g, '').trim().split('\n');
     const data: Record<string, string> = {};
     
     lines.forEach(line => {
       const [key, ...valueParts] = line.split(':');
       if (key && valueParts.length) {
-        data[key.trim()] = valueParts.join(':').trim();
+        data[key.trim().toLowerCase()] = valueParts.join(':').trim();
       }
     });
 
-    if (data.aktiv?.toLowerCase() === 'ja') {
+    if (data.aktiv === 'ja') {
       return {
         active: true,
         image: data.bild || null,
@@ -36,10 +36,16 @@ export const fetchWeeklyProgram = async (): Promise<WeeklyProgram[]> => {
     const response = await fetch(`${GITHUB_FILES.wochenprogramm}?t=${Date.now()}`);
     if (!response.ok) return [];
     const text = await response.text();
-    const lines = text.trim().split('\n');
+    const lines = text.replace(/\r/g, '').trim().split('\n').filter(line => line.includes('|'));
+    
     return lines.map(line => {
-      const [day, title, location, time] = line.split('|');
-      return { day: day || '', title: title || '', location: location || '', time: time || '' };
+      const parts = line.split('|').map(s => s.trim());
+      return { 
+        day: parts[0] || '', 
+        title: parts[1] || '', 
+        location: parts[2] || '', 
+        time: parts[3] || '' 
+      };
     });
   } catch {
     return [];
@@ -51,31 +57,25 @@ export const fetchQuote = async (): Promise<string> => {
   try {
     const response = await fetch(`${GITHUB_FILES.quotes}?t=${Date.now()}`);
     if (!response.ok) return fallback;
-    const quotes = await response.json();
+    const data = await response.json();
     
-    // Falls das JSON kein Array ist, sondern ein Objekt oder String
-    if (!Array.isArray(quotes)) {
-       return typeof quotes === 'string' ? quotes : fallback;
-    }
+    let quotes = [];
+    if (Array.isArray(data)) quotes = data;
+    else if (data.quotes && Array.isArray(data.quotes)) quotes = data.quotes;
+    else return fallback;
 
     if (quotes.length === 0) return fallback;
 
     const today = new Date();
     const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
-    const rawQuote = quotes[dayOfYear % quotes.length];
+    const item = quotes[dayOfYear % quotes.length];
     
-    const finalQuote = typeof rawQuote === 'string' ? rawQuote : fallback;
+    const text = typeof item === 'string' ? item : (item.quote || fallback);
 
-    return finalQuote
-      .replace(/Ã¤/g, 'ä')
-      .replace(/Ã¶/g, 'ö')
-      .replace(/Ã¼/g, 'ü')
-      .replace(/ÃŸ/g, 'ß')
-      .replace(/Ã"/g, 'Ä')
-      .replace(/Ã–/g, 'Ö')
-      .replace(/Ãœ/g, 'Ü');
-  } catch (err) {
-    console.error("Quote fetch error", err);
+    return text
+      .replace(/Ã¤/g, 'ä').replace(/Ã¶/g, 'ö').replace(/Ã¼/g, 'ü')
+      .replace(/ÃŸ/g, 'ß').replace(/Ã"/g, 'Ä').replace(/Ã–/g, 'Ö').replace(/Ãœ/g, 'Ü');
+  } catch {
     return fallback;
   }
 };
