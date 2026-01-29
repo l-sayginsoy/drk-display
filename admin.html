@@ -1,217 +1,246 @@
-<script>
-    const ADMIN_PASSWORD = "drk";
-    const GITHUB_CONFIG = {
-        owner: "l-sayginsoy",
-        repo: "drk-display",
-        branch: "main"
-    };
-    const GITHUB_RAW_BASE = `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/`;
-    let GITHUB_TOKEN = null;
-    
-    let currentDate = new Date();
-    let currentWeekOffset = 0;
-    // Wir speichern die Daten lokal pro Woche, damit sie beim Blättern nicht verloren gehen
-    let weekStorage = {}; 
-
-    const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
-    const DAYS_DE = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
-    
-    function getISOWeek(date) {
-        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-        return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-    }
-
-    function getTargetDate() {
-        const d = new Date();
-        d.setDate(d.getDate() + (currentWeekOffset * 7));
-        return d;
-    }
-
-    function updateCalendarHeader() {
-        const d = getTargetDate();
-        document.getElementById('calendar-month-year').textContent = `${MONTHS_DE[d.getMonth()]} ${d.getFullYear()}`;
-        document.getElementById('current-week').textContent = getISOWeek(d);
-    }
-
-    function navigateWeek(direction) {
-        // Vor dem Blättern: Aktuelle Eingaben im Cache (weekStorage) zwischenspeichern
-        saveToCache();
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRK Dashboard - Admin (Zukunftssicher)</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #a8b0ba; margin: 0; padding: 0; }
+        .header { max-width: 900px; margin: 0 auto; padding: 20px; display: flex; align-items: center; justify-content: space-between; }
+        .container { max-width: 900px; margin: 0 auto 40px; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        h1 { font-size: 1.5rem; margin: 0; color: #1a1a1a; }
+        h2 { font-size: 1.2rem; margin-bottom: 20px; color: #d7191f; border-bottom: 2px solid #eee; padding-bottom: 10px; }
         
-        currentWeekOffset += direction;
-        updateCalendarHeader();
-        generateWeekProgram();
+        /* Kalender-Navigation */
+        .calendar-nav { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 30px; background: #f8f9fa; padding: 15px; border-radius: 8px; }
+        .nav-btn { background: #d7191f; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .nav-btn:hover { background: #b01419; }
+        #calendar-month-year { font-weight: bold; font-size: 1.1rem; min-width: 150px; text-align: center; }
+
+        /* Formular-Styling */
+        .day-row { display: grid; grid-template-columns: 80px 1fr 1fr 100px; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .day-label { font-weight: bold; color: #444; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
         
-        // Nach dem Blättern: Schauen, ob wir für diese Woche schon Daten im Cache haben
-        loadFromCache();
-    }
-
-    function generateWeekProgram() {
-        const container = document.getElementById('weekly-program');
-        container.innerHTML = '';
-        const locations = ['Kleiner Saal', 'Cafeteria', 'Garten', 'Terrasse', 'Wohnbereich', 'Speisesaal', 'Andere...'];
+        .btn-save { background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 20px; font-size: 16px; }
+        .btn-save:disabled { background: #ccc; }
         
-        DAYS_DE.forEach((day) => {
-            const row = document.createElement('div');
-            row.className = 'day-row';
-            row.innerHTML = `
-                <div class="day-label">${day}</div>
-                <input type="text" class="input-title" placeholder="Veranstaltung" data-day="${day}">
-                <div class="location-container">
-                    <select class="select-location" data-day="${day}" onchange="checkCustomLoc(this)">
-                        <option value="">Ort wählen...</option>
-                        ${locations.map(loc => `<option value="${loc}">${loc}</option>`).join('')}
-                    </select>
-                    <input type="text" class="custom-location" placeholder="Anderer Ort..." style="display:none;" data-day="${day}">
-                </div>
-                <input type="time" class="input-time" data-day="${day}">
-            `;
-            container.appendChild(row);
-        });
-    }
+        #login-screen { position: fixed; inset: 0; background: #a8b0ba; display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .login-box { background: white; padding: 40px; border-radius: 12px; text-align: center; width: 350px; }
+        .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 900; align-items: center; justify-content: center; flex-direction: column; }
+    </style>
+</head>
+<body>
 
-    function checkCustomLoc(select) {
-        const customInput = select.parentElement.querySelector('.custom-location');
-        if (select.value === 'Andere...') {
-            select.style.display = 'none';
-            customInput.style.display = 'block';
-            customInput.focus();
-        }
-    }
+    <div id="login-screen">
+        <div class="login-box">
+            <img src="https://raw.githubusercontent.com/l-sayginsoy/drk-display/main/DRK-Logo_lang_RGB.png" width="200" style="margin-bottom:20px">
+            <h2>Admin Login</h2>
+            <input type="password" id="password" placeholder="Passwort" style="margin-bottom:15px">
+            <button class="btn-save" onclick="login()">Anmelden</button>
+        </div>
+    </div>
 
-    function saveToCache() {
-        const weekKey = `W${getISOWeek(getTargetDate())}-${getTargetDate().getFullYear()}`;
-        const data = [];
-        document.querySelectorAll('.day-row').forEach(row => {
-            const day = row.querySelector('.day-label').textContent;
-            const title = row.querySelector('.input-title').value;
-            const sel = row.querySelector('.select-location');
-            const cus = row.querySelector('.custom-location');
-            const time = row.querySelector('.input-time').value;
-            const location = (cus.style.display === 'block') ? cus.value : sel.value;
+    <div id="admin-panel" style="display:none">
+        <div class="header">
+            <h1>Dashboard Steuerung</h1>
+            <button onclick="logout()" style="background:none; border:1px solid #666; padding:5px 10px; border-radius:4px; cursor:pointer">Abmelden</button>
+        </div>
+
+        <div class="container">
+            <h2>Wochenprogramm Planung</h2>
             
-            if (title || location || time) {
-                data.push({ day, title, location, time });
-            }
-        });
-        weekStorage[weekKey] = data;
-    }
+            <div class="calendar-nav">
+                <button class="nav-btn" onclick="navigateWeek(-1)">◀ Letzte Woche</button>
+                <div id="calendar-month-year">Lade...</div>
+                <button class="nav-btn" onclick="navigateWeek(1)">Nächste Woche ▶</button>
+            </div>
+            
+            <div style="text-align: center; margin-bottom: 20px; font-weight: bold; color: #666;">
+                Aktuelle Auswahl: Kalenderwoche <span id="current-week">--</span>
+            </div>
 
-    function loadFromCache() {
-        const weekKey = `W${getISOWeek(getTargetDate())}-${getTargetDate().getFullYear()}`;
-        const data = weekStorage[weekKey] || [];
+            <div id="weekly-program">
+                </div>
+
+            <button id="save-program-btn" class="btn-save" onclick="saveWeeklyProgram()">Gesamte Planung speichern</button>
+        </div>
+    </div>
+
+    <div id="loading" class="loading-overlay">
+        <div style="border: 4px solid #f3f3f3; border-top: 4px solid #d7191f; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
+        <p>Daten werden mit GitHub synchronisiert...</p>
+    </div>
+
+    <script>
+        const ADMIN_PASSWORD = "drk";
+        const GITHUB_CONFIG = {
+            owner: "l-sayginsoy",
+            repo: "drk-display",
+            branch: "main"
+        };
+        const GITHUB_RAW_BASE = `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/`;
         
-        document.querySelectorAll('.day-row').forEach(row => {
-            const day = row.querySelector('.day-label').textContent;
-            const entry = data.find(d => d.day === day);
-            if (entry) {
-                row.querySelector('.input-title').value = entry.title;
-                row.querySelector('.input-time').value = entry.time;
-                const sel = row.querySelector('.select-location');
-                const cus = row.querySelector('.custom-location');
-                if (['Kleiner Saal', 'Cafeteria', 'Garten', 'Terrasse', 'Wohnbereich', 'Speisesaal', ''].includes(entry.location)) {
-                    sel.value = entry.location;
-                    sel.style.display = 'block';
-                    cus.style.display = 'none';
-                } else {
-                    sel.value = 'Andere...';
-                    sel.style.display = 'none';
-                    cus.style.display = 'block';
-                    cus.value = entry.location;
+        let GITHUB_TOKEN = null;
+        let currentWeekOffset = 0;
+        let fullDatabase = {}; // Speichert ALLES: { "2026-W05-MO": {title: "...", loc: "...", time: "..."} }
+
+        const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+        const DAYS_DE = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
+
+        // --- HILFSFUNKTIONEN ---
+        function getISOWeekData(offset = 0) {
+            const d = new Date();
+            d.setDate(d.getDate() + (offset * 7));
+            d.setHours(0,0,0,0);
+            const dayNum = d.getDay() || 7;
+            d.setDate(d.getDate() + 4 - dayNum);
+            const year = d.getFullYear();
+            const week = Math.ceil((((d - new Date(year, 0, 1)) / 86400000) + 1) / 7);
+            return { week, year, month: MONTHS_DE[d.getMonth()] };
+        }
+
+        function getWeekKey(offset, dayIndex) {
+            const data = getISOWeekData(offset);
+            const weekStr = data.week.toString().padStart(2, '0');
+            return `${data.year}-W${weekStr}-${DAYS_DE[dayIndex]}`;
+        }
+
+        // --- CORE LOGIK ---
+        async function login() {
+            if (document.getElementById('password').value === ADMIN_PASSWORD) {
+                GITHUB_TOKEN = sessionStorage.getItem("gh_token") || prompt("GitHub Personal Access Token eingeben:");
+                if (GITHUB_TOKEN) {
+                    sessionStorage.setItem("gh_token", GITHUB_TOKEN);
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('admin-panel').style.display = 'block';
+                    await loadAllData();
                 }
-            }
-        });
-    }
-
-    async function login() {
-        if (document.getElementById('password').value === ADMIN_PASSWORD) {
-            GITHUB_TOKEN = await getGitHubToken();
-            if (GITHUB_TOKEN) {
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('admin-panel').style.display = 'block';
-                updateCalendarHeader();
-                generateWeekProgram();
-                await loadAllDataFromGitHub();
-            }
-        } else {
-            alert("Falsches Passwort");
+            } else { alert("Passwort falsch"); }
         }
-    }
 
-    async function getGitHubToken() {
-        let token = sessionStorage.getItem("gh_token");
-        if (!token) {
-            token = prompt("Bitte GitHub Token eingeben:");
-            if (token) sessionStorage.setItem("gh_token", token);
+        async function loadAllData() {
+            document.getElementById('loading').style.display = 'flex';
+            try {
+                const resp = await fetch(`${GITHUB_RAW_BASE}wochenprogramm.txt?t=${Date.now()}`);
+                if (resp.ok) {
+                    const text = await resp.text();
+                    fullDatabase = {};
+                    text.split('\n').forEach(line => {
+                        const [id, day, title, loc, time] = line.split('|');
+                        if (id && id.includes('-W')) {
+                            fullDatabase[id] = { day, title, loc, time };
+                        }
+                    });
+                }
+                renderUI();
+            } catch (e) { alert("Fehler beim Laden: " + e.message); }
+            document.getElementById('loading').style.display = 'none';
         }
-        return token;
-    }
 
-    async function loadAllDataFromGitHub() {
-        try {
-            const resp = await fetch(`${GITHUB_RAW_BASE}wochenprogramm.txt?t=${Date.now()}`);
-            if (resp.ok) {
-                const text = await resp.text();
-                // Da die Hauptseite nur 7 Zeilen versteht, laden wir diese in die AKTUELLE Woche des Admins
-                const lines = text.split('\n').filter(l => l.includes('|'));
-                const weekKey = `W${getISOWeek(getTargetDate())}-${getTargetDate().getFullYear()}`;
-                weekStorage[weekKey] = lines.map(l => {
-                    const [day, title, location, time] = l.split('|');
-                    return { day, title, location, time };
-                });
-                loadFromCache();
-            }
-        } catch (e) { console.error("Ladefehler", e); }
-    }
+        function renderUI() {
+            const data = getISOWeekData(currentWeekOffset);
+            document.getElementById('calendar-month-year').textContent = `${data.month} ${data.year}`;
+            document.getElementById('current-week').textContent = data.week;
 
-    async function saveWeeklyProgram() {
-        const btn = document.getElementById('save-program-btn');
-        btn.disabled = true;
-        btn.textContent = "Speichert...";
+            const container = document.getElementById('weekly-program');
+            container.innerHTML = '';
 
-        saveToCache(); // Aktuellen Stand sichern
-        
-        const weekKey = `W${getISOWeek(getTargetDate())}-${getTargetDate().getFullYear()}`;
-        const currentData = weekStorage[weekKey] || [];
-        
-        // Wir erstellen genau 7 Zeilen (für jeden Tag eine), damit die Hauptseite nicht verwirrt ist
-        const outputLines = DAYS_DE.map(day => {
-            const entry = currentData.find(d => d.day === day) || { title: '', location: '', time: '' };
-            return `${day}|${entry.title}|${entry.location}|${entry.time}`;
-        });
+            const locations = ['Kleiner Saal', 'Cafeteria', 'Garten', 'Terrasse', 'Wohnbereich', 'Speisesaal', 'Andere...'];
 
-        const content = outputLines.join('\n');
+            DAYS_DE.forEach((day, index) => {
+                const id = getWeekKey(currentWeekOffset, index);
+                const entry = fullDatabase[id] || { title: '', loc: '', time: '' };
 
-        try {
-            const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/dispatches`;
-            const resp = await fetch(url, {
-                method: 'POST',
-                headers: { 
-                    'Authorization': `Bearer ${GITHUB_TOKEN}`,
-                    'Content-Type': 'application/json' 
-                },
-                body: JSON.stringify({ 
-                    event_type: 'update-dashboard', 
-                    client_payload: { file: 'wochenprogramm.txt', content: content, message: `Update für KW ${getISOWeek(getTargetDate())}` } 
-                })
+                const row = document.createElement('div');
+                row.className = 'day-row';
+                row.innerHTML = `
+                    <div class="day-label">${day}</div>
+                    <input type="text" class="in-title" data-id="${id}" value="${entry.title || ''}" placeholder="Event...">
+                    <div class="loc-box">
+                        <select class="sel-loc" onchange="handleLoc(this)" data-id="${id}">
+                            <option value="">Ort wählen...</option>
+                            ${locations.map(l => `<option value="${l}" ${entry.loc === l ? 'selected' : ''}>${l}</option>`).join('')}
+                        </select>
+                        <input type="text" class="custom-loc" style="display:${locations.includes(entry.loc) || !entry.loc ? 'none' : 'block'}" 
+                               value="${locations.includes(entry.loc) ? '' : entry.loc}" placeholder="Ort...">
+                    </div>
+                    <input type="time" class="in-time" data-id="${id}" value="${entry.time || ''}">
+                `;
+                container.appendChild(row);
             });
-
-            if (resp.ok) {
-                alert("✅ Gespeichert! Die Hauptseite zeigt nun diese Woche an. (Update dauert ca. 30 Sek.)");
-            } else {
-                throw new Error("GitHub API Fehler");
-            }
-        } catch (e) {
-            alert("Fehler: " + e.message);
-        } finally {
-            btn.disabled = false;
-            btn.textContent = "Speichern";
         }
-    }
 
-    function logout() {
-        sessionStorage.clear();
-        location.reload();
-    }
-</script>
+        function handleLoc(select) {
+            const custom = select.parentElement.querySelector('.custom-loc');
+            if (select.value === 'Andere...') {
+                select.style.display = 'none';
+                custom.style.display = 'block';
+                custom.focus();
+            }
+        }
+
+        function navigateWeek(dir) {
+            // Erst aktuelle Eingaben im Speicher sichern
+            saveToMemory();
+            currentWeekOffset += dir;
+            renderUI();
+        }
+
+        function saveToMemory() {
+            document.querySelectorAll('.day-row').forEach(row => {
+                const title = row.querySelector('.in-title');
+                const id = title.dataset.id;
+                const sel = row.querySelector('.sel-loc');
+                const cus = row.querySelector('.custom-loc');
+                const time = row.querySelector('.in-time').value;
+                const day = row.querySelector('.day-label').textContent;
+
+                const finalLoc = (cus.style.display === 'block') ? cus.value : sel.value;
+
+                if (title.value || finalLoc || time) {
+                    fullDatabase[id] = { day, title: title.value, loc: finalLoc, time };
+                } else {
+                    delete fullDatabase[id];
+                }
+            });
+        }
+
+        async function saveWeeklyProgram() {
+            saveToMemory();
+            const btn = document.getElementById('save-program-btn');
+            btn.disabled = true;
+            btn.textContent = "Speichere auf GitHub...";
+
+            const content = Object.keys(fullDatabase)
+                .map(id => `${id}|${fullDatabase[id].day}|${fullDatabase[id].title}|${fullDatabase[id].loc}|${fullDatabase[id].time}`)
+                .join('\n');
+
+            try {
+                const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/dispatches`;
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        event_type: 'update-dashboard', 
+                        client_payload: { file: 'wochenprogramm.txt', content: content, message: 'Planung aktualisiert' } 
+                    })
+                });
+
+                if (resp.ok) {
+                    alert("✅ Erfolgreich gespeichert! In ca. 30 Sekunden ist es auf dem Display.");
+                } else { throw new Error("GitHub API Error"); }
+            } catch (e) {
+                alert("Fehler: " + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Gesamte Planung speichern";
+            }
+        }
+
+        function logout() { sessionStorage.clear(); location.reload(); }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </script>
+</body>
+</html>
