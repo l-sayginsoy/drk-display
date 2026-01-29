@@ -4,7 +4,7 @@ export const fetchWeeklyProgram = async (): Promise<WeeklyProgram[]> => {
     if (!response.ok) return [];
     const text = await response.text();
     
-    // Aktuelle Woche berechnen (ISO-Standard)
+    // Aktuelle KW berechnen
     const d = new Date();
     d.setHours(0,0,0,0);
     d.setDate(d.getDate() + 4 - (d.getDay() || 7));
@@ -14,12 +14,11 @@ export const fetchWeeklyProgram = async (): Promise<WeeklyProgram[]> => {
 
     const lines = text.replace(/\r/g, '').trim().split('\n');
     
-    // Filtert nur die Zeilen, die mit der aktuellen Woche (z.B. 2026-W05) beginnen
+    // Filtert nur die Termine der AKTUELLEN Woche
     return lines
       .filter(line => line.startsWith(currentWeekKey))
       .map(line => {
         const parts = line.split('|').map(s => s.trim());
-        // parts ist die ID, parts der Tag, parts der Titel...
         return { 
           day: parts || '', 
           title: parts || '', 

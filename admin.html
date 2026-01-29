@@ -2,177 +2,159 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DRK Admin - Stabil</title>
+    <title>DRK Admin - SICHERHEITS MODUS</title>
     <style>
-        body { font-family: sans-serif; background: #a8b0ba; padding: 20px; color: #333; }
-        .box { background: white; padding: 25px; border-radius: 12px; max-width: 800px; margin: 0 auto; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
-        .login-box { max-width: 350px; text-align: center; margin-top: 50px; }
-        h2 { color: #d7191f; margin-top: 0; }
-        .nav { display: flex; justify-content: space-between; align-items: center; background: #f0f0f0; padding: 10px; border-radius: 8px; margin: 15px 0; }
-        .day-row { display: grid; grid-template-columns: 70px 1fr 1fr 90px; gap: 8px; padding: 10px 0; border-bottom: 1px solid #eee; align-items: center; }
-        input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
-        .btn-red { background: #d7191f; color: white; padding: 8px 15px; }
-        .btn-green { background: #28a745; color: white; padding: 15px; width: 100%; font-size: 16px; margin-top: 20px; }
-        #status { font-size: 12px; margin-top: 10px; text-align: center; color: #666; }
+        body { font-family: sans-serif; background: #f0f0f0; padding: 20px; }
+        .container { background: white; max-width: 800px; margin: 0 auto; padding: 20px; border-radius: 8px; border: 2px solid #d7191f; }
+        h1 { color: #d7191f; margin-top: 0; }
+        .week-nav { background: #eee; padding: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-radius: 5px; }
+        .day-row { display: grid; grid-template-columns: 80px 1fr 1fr 100px; gap: 10px; padding: 10px 0; border-bottom: 1px solid #ddd; }
+        input { padding: 8px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
+        .btn { padding: 10px 20px; font-weight: bold; cursor: pointer; border: none; border-radius: 4px; }
+        .btn-save { background: #28a745; color: white; width: 100%; margin-top: 20px; font-size: 1.1em; }
+        .btn-nav { background: #d7191f; color: white; }
+        #status-box { margin-top: 15px; padding: 10px; font-size: 13px; background: #fff3f3; border: 1px solid #ffcccc; display: block; }
     </style>
 </head>
 <body>
 
-    <div id="login-area" class="box login-box">
-        <img src="https://raw.githubusercontent.com/l-sayginsoy/drk-display/main/DRK-Logo_lang_RGB.png" width="180"><br><br>
-        <input type="password" id="pass" placeholder="Passwort (drk)" style="text-align:center"><br><br>
-        <button class="btn-green" onclick="checkPass()" style="margin:0">Anmelden</button>
-    </div>
+    <div class="container">
+        <img src="https://raw.githubusercontent.com/l-sayginsoy/drk-display/main/DRK-Logo_lang_RGB.png" width="150">
+        <h1>Wochen-Planer</h1>
 
-    <div id="admin-area" class="box" style="display:none;">
-        <h2>Wochenplanung</h2>
-        
-        <div class="nav">
-            <button class="btn-red" onclick="nav(-1)">◀</button>
-            <div style="text-align:center">
-                <strong id="label-month">Wird geladen...</strong><br>
-                <small>Kalenderwoche <span id="label-kw">--</span></small>
-            </div>
-            <button class="btn-red" onclick="nav(1)">▶</button>
+        <div id="status-box">Status: System bereit. Bitte Passwort eingeben.</div>
+
+        <div id="login-section">
+            <p>Passwort: <input type="password" id="pass" style="width:150px"> 
+            <button class="btn btn-nav" onclick="login()">Anmelden</button></p>
         </div>
 
-        <div id="form-content">
+        <div id="main-ui" style="display:none;">
+            <div class="week-nav">
+                <button class="btn btn-nav" onclick="moveWeek(-1)">◀ Letzte Woche</button>
+                <div style="text-align:center">
+                    <strong id="label-week">KW --</strong><br>
+                    <span id="label-date">--</span>
+                </div>
+                <button class="btn btn-nav" onclick="moveWeek(1)">Nächste Woche ▶</button>
             </div>
 
-        <button id="save-btn" class="btn-green" onclick="save()">Speichern & Veröffentlichen</button>
-        <div id="status">Bereit.</div>
-        
-        <button onclick="logout()" style="margin-top:30px; background:none; color:#999; font-size:10px; width:100%;">Abmelden / Token löschen</button>
+            <div id="editor">
+                </div>
+
+            <button class="btn btn-save" onclick="save()">Planung permanent speichern</button>
+            <p style="text-align:center; font-size:11px; color:gray;">
+                Nach dem Speichern dauert es ca. 30 Sek. bis das Display sich aktualisiert.
+            </p>
+        </div>
     </div>
 
     <script>
         const REPO = "l-sayginsoy/drk-display";
-        let offset = 0;
-        let database = {}; 
-        let token = localStorage.getItem("drk_gh_token");
+        const FILE = "wochenprogramm.txt";
+        let db = {}; 
+        let currentOffset = 0;
+        let ghToken = localStorage.getItem("drk_token");
 
-        // Passwort-Check
-        function checkPass() {
+        function setStatus(msg) {
+            document.getElementById("status-box").innerText = "Status: " + msg;
+        }
+
+        function login() {
             if (document.getElementById("pass").value === "drk") {
-                document.getElementById("login-area").style.display = "none";
-                document.getElementById("admin-area").style.display = "block";
-                init();
-            } else { alert("Falsch!"); }
+                document.getElementById("login-section").style.display = "none";
+                document.getElementById("main-ui").style.display = "block";
+                if (!ghToken) {
+                    ghToken = prompt("GitHub Token eingeben:");
+                    if (ghToken) localStorage.setItem("drk_token", ghToken);
+                }
+                loadFromGitHub();
+            } else { alert("Falsches Passwort!"); }
         }
 
-        async function init() {
-            if (!token) {
-                token = prompt("GitHub Token benötigt:");
-                if (token) localStorage.setItem("drk_gh_token", token);
-            }
-            await loadFile();
-            render();
-        }
-
-        // Datumshilfe
-        function getWeekInfo(off) {
+        function getWeekKey(offset) {
             let d = new Date();
-            d.setDate(d.getDate() + (off * 7));
+            d.setDate(d.getDate() + (offset * 7));
             d.setHours(0,0,0,0);
             d.setDate(d.getDate() + 4 - (d.getDay() || 7));
             let year = d.getFullYear();
             let week = Math.ceil((((d - new Date(year, 0, 1)) / 86400000) + 1) / 7);
-            let mName = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"][d.getMonth()];
-            return { kw: week, yr: year, head: mName + " " + year, key: year + "-W" + week.toString().padStart(2, '0') };
+            return year + "-W" + week.toString().padStart(2, '0');
         }
 
-        // Von GitHub laden
-        async function loadFile() {
-            document.getElementById("status").innerText = "Lade Daten von GitHub...";
+        async function loadFromGitHub() {
+            setStatus("Lade Daten...");
             try {
-                const r = await fetch(`https://raw.githubusercontent.com/${REPO}/main/wochenprogramm.txt?t=${Date.now()}`);
+                const url = `https://raw.githubusercontent.com/${REPO}/main/${FILE}?t=${Date.now()}`;
+                const r = await fetch(url);
                 if (r.ok) {
                     const text = await r.text();
-                    database = {};
+                    db = {};
                     text.split("\n").forEach(line => {
-                        const [id, tag, tit, loc, tim] = line.split("|");
-                        if (id && id.includes("-W")) database[id] = { tag, tit, loc, tim };
+                        const [id, day, tit, loc, tim] = line.split("|");
+                        if (id && id.includes("-W")) db[id] = { day, tit, loc, tim };
                     });
-                }
-                document.getElementById("status").innerText = "Daten geladen.";
-            } catch (e) { document.getElementById("status").innerText = "Fehler beim Laden!"; }
+                    setStatus("Daten geladen.");
+                } else { setStatus("Datei noch leer oder neu."); }
+                render();
+            } catch (e) { setStatus("Fehler: " + e.message); }
         }
 
-        // Formular zeichnen
         function render() {
-            const info = getWeekInfo(offset);
-            document.getElementById("label-month").innerText = info.head;
-            document.getElementById("label-kw").innerText = info.kw;
-
+            const weekKey = getWeekKey(currentOffset);
+            document.getElementById("label-week").innerText = "Woche: " + weekKey;
+            
             const days = ["MO", "DI", "MI", "DO", "FR", "SA", "SO"];
-            const cont = document.getElementById("form-content");
+            const cont = document.getElementById("editor");
             cont.innerHTML = "";
 
             days.forEach(d => {
-                const id = info.key + "-" + d;
-                const row = database[id] || { tit: "", loc: "", tim: "" };
+                const id = weekKey + "-" + d;
+                const row = db[id] || { tit: "", loc: "", tim: "" };
                 cont.innerHTML += `
                     <div class="day-row">
                         <strong>${d}</strong>
-                        <input type="text" class="i-t" data-id="${id}" value="${row.tit}" placeholder="Was?">
-                        <input type="text" class="i-l" data-id="${id}" value="${row.loc}" placeholder="Wo?">
-                        <input type="time" class="i-h" data-id="${id}" value="${row.tim}">
+                        <input type="text" class="in-t" data-id="${id}" value="${row.tit}" placeholder="Programm">
+                        <input type="text" class="in-l" data-id="${id}" value="${row.loc}" placeholder="Ort">
+                        <input type="time" class="in-h" data-id="${id}" value="${row.tim}">
                     </div>
                 `;
             });
         }
 
-        function nav(dir) {
-            cacheInputs();
-            offset += dir;
+        function moveWeek(dir) {
+            saveToMemory();
+            currentOffset += dir;
             render();
         }
 
-        function cacheInputs() {
-            document.querySelectorAll(".i-t").forEach(el => {
+        function saveToMemory() {
+            document.querySelectorAll(".in-t").forEach(el => {
                 const id = el.dataset.id;
                 const row = el.parentElement;
                 const tit = el.value;
-                const loc = row.querySelector(".i-l").value;
-                const tim = row.querySelector(".i-h").value;
-                const tag = row.querySelector("strong").innerText;
-                if (tit || loc || tim) database[id] = { tag, tit, loc, tim };
-                else delete database[id];
+                const loc = row.querySelector(".in-l").value;
+                const tim = row.querySelector(".in-h").value;
+                const day = row.querySelector("strong").innerText;
+                if (tit || loc || tim) db[id] = { day, tit, loc, tim };
+                else delete db[id];
             });
         }
 
         async function save() {
-            cacheInputs();
-            const btn = document.getElementById("save-btn");
-            btn.disabled = true;
-            btn.innerText = "Wird übertragen...";
-
-            const content = Object.keys(database)
-                .map(k => `${k}|${database.tag}|${database.tit}|${database.loc}|${database.tim}`)
-                .join("\n");
+            saveToMemory();
+            setStatus("Speichere auf GitHub...");
+            const content = Object.keys(db).map(k => `${k}|${db.day}|${db.tit}|${db.loc}|${db.tim}`).join("\n");
 
             try {
                 const r = await fetch(`https://api.github.com/repos/${REPO}/dispatches`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        event_type: 'update-dashboard', 
-                        client_payload: { file: 'wochenprogramm.txt', content: content, message: 'Planung Update' } 
-                    })
+                    headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event_type: 'update-dashboard', client_payload: { file: FILE, content: content } })
                 });
-                if (r.ok) alert("✅ Gespeichert! Es dauert ca. 30 Sek. bis das Display es anzeigt.");
-                else alert("❌ Fehler! Ist der Token korrekt?");
+                if (r.ok) { alert("Gespeichert!"); setStatus("Erfolgreich gespeichert."); }
+                else { alert("GitHub Fehler! Token prüfen."); setStatus("Fehler beim Senden."); }
             } catch (e) { alert("Fehler: " + e.message); }
-            
-            btn.disabled = false;
-            btn.innerText = "Speichern & Veröffentlichen";
-        }
-
-        function logout() {
-            localStorage.clear();
-            location.reload();
         }
     </script>
 </body>
