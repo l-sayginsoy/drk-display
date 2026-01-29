@@ -56,8 +56,6 @@ export default function AdminApp() {
     }
     try {
       setIsSyncing(true);
-      setGithubStatus('idle');
-      
       const progRes = await fetchFileFromGitHub(githubConfig);
       if (progRes.content) {
         const lines = progRes.content.split('\n');
@@ -71,17 +69,14 @@ export default function AdminApp() {
         });
         setActivities(newActivities);
       }
-
       try {
         const eventRes = await fetchFileFromGitHub(githubConfig, 'event.json');
         if (eventRes.content) setEventConfig(JSON.parse(eventRes.content));
       } catch (e) {}
-
       setGithubStatus('connected');
     } catch (err: any) {
       setGithubStatus('error');
-      if (err.message.includes('404')) setGithubStatus('connected');
-      else showStatus("GitHub Verbindung fehlgeschlagen", "error");
+      if (!err.message.includes('404')) showStatus("GitHub Verbindung fehlgeschlagen", "error");
     } finally {
       setIsSyncing(false);
     }
@@ -107,7 +102,7 @@ export default function AdminApp() {
 
   const saveAllToGitHub = async () => {
     if (!githubConfig.token) {
-      showStatus("Bitte GitHub Token in den Einstellungen eingeben!", "error");
+      showStatus("Bitte Token in den Einstellungen eingeben!", "error");
       setShowSettings(true);
       return;
     }
@@ -178,16 +173,16 @@ export default function AdminApp() {
               <Lock size={48} />
             </div>
           </div>
-          <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-2 text-center">DRK ADMIN</h1>
+          <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-2">DRK ADMIN</h1>
           <form onSubmit={(e) => { e.preventDefault(); password === ADMIN_PASSWORD ? setIsLoggedIn(true) : setLoginError(true); }} className="space-y-6">
             <input 
               type="password" autoFocus
               value={password} onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-8 py-6 bg-slate-100 border-4 border-transparent rounded-3xl outline-none focus:border-red-600 text-center font-black text-2xl transition-all"
+              className="w-full px-8 py-6 bg-slate-100 border-4 border-transparent rounded-3xl outline-none focus:border-red-600 text-center font-black text-2xl"
               placeholder="PASSWORT"
             />
-            {loginError && <p className="text-red-600 font-black text-[10px] uppercase text-center">Falsches Passwort</p>}
-            <button type="submit" className="w-full bg-slate-900 text-white font-black py-6 rounded-3xl uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl active:scale-95">Einloggen</button>
+            {loginError && <p className="text-red-600 font-black text-xs uppercase">Falsches Passwort</p>}
+            <button type="submit" className="w-full bg-slate-900 text-white font-black py-6 rounded-3xl uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95">Einloggen</button>
           </form>
         </div>
       </div>
@@ -198,21 +193,21 @@ export default function AdminApp() {
     <div className="min-h-screen bg-[#f1f5f9]">
       {showSettings && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/95 backdrop-blur-xl">
-          <div className="bg-white w-full max-w-xl rounded-[3.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
-            <div className="p-10 border-b flex justify-between items-center bg-slate-50/50">
+          <div className="bg-white w-full max-w-xl rounded-[3.5rem] shadow-2xl overflow-hidden">
+            <div className="p-10 border-b flex justify-between items-center bg-slate-50">
               <h2 className="font-black text-slate-900 uppercase tracking-tighter text-2xl flex items-center gap-4"><Github size={32} /> GitHub Setup</h2>
               <button onClick={() => setShowSettings(false)} className="p-4 hover:bg-slate-200 rounded-full transition-colors"><X size={28}/></button>
             </div>
             <div className="p-12 space-y-8">
-              <div className="bg-yellow-50 p-6 rounded-2xl border-2 border-yellow-100 text-yellow-800 text-xs font-bold leading-relaxed">
-                Hinweis: Der Token wird nur in deinem Browser gespeichert. Er wird niemals im Code hochgeladen.
+              <div className="bg-yellow-50 p-6 rounded-2xl border border-yellow-100 text-yellow-800 text-xs font-bold leading-relaxed">
+                WICHTIG: Der Token wird nur in diesem Browser gespeichert. Er wird nicht im Code hochgeladen!
               </div>
               <div className="space-y-4">
                 <input type="text" value={githubConfig.owner} onChange={e => setGithubConfig(p => ({...p, owner: e.target.value}))} className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black outline-none" placeholder="GitHub Nutzername" />
                 <input type="text" value={githubConfig.repo} onChange={e => setGithubConfig(p => ({...p, repo: e.target.value}))} className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black outline-none" placeholder="Repository Name" />
                 <input type="password" value={githubConfig.token} onChange={e => setGithubConfig(p => ({...p, token: e.target.value}))} className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black outline-none" placeholder="GitHub Token (ghp_...)" />
               </div>
-              <button onClick={() => { saveGitHubConfig(githubConfig); setShowSettings(false); loadAllData(); }} className="w-full bg-red-600 text-white py-6 rounded-3xl font-black uppercase tracking-widest shadow-xl">Konfiguration Speichern</button>
+              <button onClick={() => { saveGitHubConfig(githubConfig); setShowSettings(false); loadAllData(); }} className="w-full bg-red-600 text-white py-6 rounded-3xl font-black uppercase tracking-widest shadow-xl">Speichern</button>
             </div>
           </div>
         </div>
@@ -224,19 +219,17 @@ export default function AdminApp() {
           <div>
             <h1 className="font-black text-slate-900 tracking-tighter text-2xl uppercase leading-none">ADMIN DASHBOARD</h1>
             <div className="flex items-center gap-2 mt-1">
-               <div className={`w-2 h-2 rounded-full ${githubStatus === 'connected' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
-               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                 {githubStatus === 'connected' ? 'Verbunden' : 'Nicht Verbunden (Token fehlt)'}
-               </p>
+               <div className={`w-2 h-2 rounded-full ${githubStatus === 'connected' ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{githubStatus === 'connected' ? 'Verbunden' : 'Getrennt'}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <button onClick={() => setShowSettings(true)} className="p-4 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-2xl transition-all relative">
             <Settings size={28}/>
-            {!githubConfig.token && <div className="absolute top-3 right-3 w-3 h-3 bg-red-600 rounded-full border-2 border-white animate-bounce"></div>}
+            {!githubConfig.token && <div className="absolute top-3 right-3 w-3 h-3 bg-red-600 rounded-full border-2 border-white animate-pulse"></div>}
           </button>
-          <button onClick={() => setIsLoggedIn(false)} className="px-6 py-3 bg-slate-900 text-white font-black text-[10px] uppercase rounded-xl hover:bg-black">Logout</button>
+          <button onClick={() => setIsLoggedIn(false)} className="px-6 py-3 bg-slate-900 text-white font-black text-[10px] uppercase rounded-xl hover:bg-black transition-all">Logout</button>
         </div>
       </header>
 
@@ -317,11 +310,11 @@ export default function AdminApp() {
                </div>
                <div className="space-y-2">
                  <label className="text-[9px] font-black text-white/30 uppercase ml-1">Beginn</label>
-                 <input type="datetime-local" value={eventConfig.start} onChange={e => setEventConfig(p => ({...p, start: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs font-black outline-none" />
+                 <input type="datetime-local" value={eventConfig.start} onChange={e => setEventConfig(p => ({...p, start: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs font-black outline-none focus:border-white/30" />
                </div>
                <div className="space-y-2">
                  <label className="text-[9px] font-black text-white/30 uppercase ml-1">Ende</label>
-                 <input type="datetime-local" value={eventConfig.end} onChange={e => setEventConfig(p => ({...p, end: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs font-black outline-none" />
+                 <input type="datetime-local" value={eventConfig.end} onChange={e => setEventConfig(p => ({...p, end: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs font-black outline-none focus:border-white/30" />
                </div>
              </div>
           </section>
