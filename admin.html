@@ -609,13 +609,8 @@
         }
 
         async function getGitHubToken() {
-            try {
-                const response = await fetch('/api/get-token');
-                const data = await response.json();
-                return data.token;
-            } catch (e) {
-                return null;
-            }
+            // Kein Token im Code - stattdessen zeigen wir die Daten zum Copy & Paste
+            return null;
         }
 
         function checkLogin() {
@@ -887,8 +882,32 @@
                         content += `${day}|${title}|${location}|${time}\n`;
                     }
                 });
-                await triggerGitHubAction('wochenprogramm.txt', content.trim(), 'Wochenprogramm aktualisiert');
-                showSuccess('✅ Wochenprogramm gespeichert!');
+                
+                if (GITHUB_TOKEN) {
+                    // Automatisch speichern
+                    await triggerGitHubAction('wochenprogramm.txt', content.trim(), 'Wochenprogramm aktualisiert');
+                    showSuccess('✅ Wochenprogramm gespeichert!');
+                } else {
+                    // Daten zum Copy & Paste anzeigen
+                    const textarea = document.createElement('textarea');
+                    textarea.value = content.trim();
+                    textarea.style.width = '100%';
+                    textarea.style.height = '200px';
+                    textarea.style.fontFamily = 'monospace';
+                    textarea.style.fontSize = '14px';
+                    textarea.style.marginTop = '10px';
+                    
+                    const msg = document.getElementById('success-msg');
+                    msg.innerHTML = `
+                        <strong>📋 Daten bereit zum Kopieren:</strong><br>
+                        Gehe zu GitHub → <code>wochenprogramm.txt</code> → Inhalt ersetzen:
+                    `;
+                    msg.appendChild(textarea);
+                    msg.style.display = 'block';
+                    
+                    textarea.select();
+                    setTimeout(() => msg.style.display = 'none', 30000);
+                }
             } catch (e) {
                 showError('❌ Fehler: ' + e.message);
             } finally {
