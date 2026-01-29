@@ -1,942 +1,217 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DRK Dashboard - Admin</title>
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            background: #a8b0ba;
-            min-height: 100vh;
-            padding: 0;
-            margin: 0;
-        }
-        .header {
-            max-width: min(900px, 90vw);
-            margin: 0 auto;
-            padding: clamp(1.5rem, 3vw, 2.5rem) clamp(1.5rem, 4vw, 3rem) clamp(1rem, 2vw, 1.5rem);
-        }
-        .header-flex {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .header h1 {
-            font-size: clamp(1.2rem, 2.5vw, 1.6rem);
-            font-weight: 600;
-            color: #1a1a1a;
-            margin: 0;
-        }
-        .header img {
-            height: clamp(24px, 4vw, 32px);
-        }
-        .container {
-            max-width: min(900px, 90vw);
-            margin: 0 auto;
-            padding: 0 clamp(1.5rem, 4vw, 3rem) clamp(2rem, 4vw, 3rem);
-        }
-        .card {
-            background: white;
-            border-radius: 8px;
-            padding: clamp(1.5rem, 3vw, 2.5rem) clamp(1.5rem, 4vw, 3rem);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            margin-bottom: clamp(1rem, 2vw, 1.5rem);
-        }
-        .input-group {
-            margin-bottom: clamp(0.8rem, 2vw, 1.5rem);
-        }
-        label {
-            display: block;
-            font-weight: 400;
-            margin-bottom: 0.5rem;
-            color: #1a1a1a;
-            font-size: clamp(0.85rem, 1.5vw, 0.95rem);
-        }
-        input, select {
-            width: 100%;
-            max-width: 280px;
-            padding: clamp(0.6rem, 1.2vw, 0.85rem);
-            border: 1.5px solid #e5e5e5;
-            border-radius: 6px;
-            font-size: clamp(0.9rem, 1.5vw, 1rem);
-            background: #fafafa;
-        }
-        input[type="datetime-local"] {
-            max-width: 280px;
-        }
-        input:focus, select:focus {
-            outline: none;
-            border-color: #667eea;
-            background: white;
-        }
-        .btn {
-            background: #667eea;
-            color: white;
-            padding: clamp(0.6rem, 1.2vw, 0.7rem) clamp(1.2rem, 2.5vw, 1.8rem);
-            border: none;
-            border-radius: 6px;
-            font-weight: 500;
-            cursor: pointer;
-            font-size: clamp(0.85rem, 1.5vw, 0.95rem);
-        }
-        .btn:hover {
-            background: #5568d3;
-        }
-        .btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        .btn-logout {
-            background: #6c757d;
-        }
-        .btn-logout:hover {
-            background: #5a6268;
-        }
-        
-        /* Kalender Navigation */
-        .calendar-navigation {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: clamp(1.5rem, 3vw, 2.5rem);
-            gap: clamp(1rem, 2vw, 1.5rem);
-        }
-        .calendar-header {
-            text-align: center;
-            flex: 1;
-        }
-        .calendar-header h2 {
-            margin: 0 0 0.3rem 0;
-            font-size: clamp(1.3rem, 2.5vw, 1.7rem);
-            font-weight: 600;
-            color: #1a1a1a;
-        }
-        .calendar-week {
-            font-size: clamp(0.9rem, 1.6vw, 1rem);
-            color: #667eea;
-            font-weight: 500;
-        }
-        .btn-nav {
-            background: #667eea;
-            color: white;
-            padding: clamp(0.5rem, 1vw, 0.6rem) clamp(0.8rem, 1.5vw, 1rem);
-            border: none;
-            border-radius: 6px;
-            font-weight: 500;
-            cursor: pointer;
-            font-size: clamp(0.8rem, 1.4vw, 0.9rem);
-            min-width: clamp(60px, 10vw, 80px);
-            transition: all 0.2s;
-        }
-        .btn-nav:hover {
-            background: #5568d3;
-            transform: translateY(-1px);
-        }
-        .btn-nav:active {
-            transform: translateY(0);
-        }
-        h2 {
-            color: #1a1a1a;
-            margin-bottom: clamp(1.5rem, 3vw, 2.5rem);
-            font-size: clamp(1.2rem, 2.2vw, 1.5rem);
-            font-weight: 600;
-        }
-        .day-row {
-            display: grid;
-            grid-template-columns: clamp(50px, 8vw, 60px) 1fr 1fr clamp(85px, 12vw, 95px);
-            gap: clamp(0.5rem, 1vw, 0.75rem);
-            margin-bottom: clamp(0.5rem, 1vw, 0.75rem);
-            align-items: center;
-        }
-        .day-label {
-            font-weight: 600;
-            color: #667eea;
-            text-align: center;
-            font-size: clamp(0.9rem, 1.6vw, 1rem);
-            width: 100%;
-            font-variant-numeric: tabular-nums;
-            line-height: 1.2;
-        }
-        .day-label small {
-            color: #6b7280;
-            font-weight: 400;
-            font-size: clamp(0.75rem, 1.3vw, 0.85rem);
-            display: block;
-            margin-top: 0.1rem;
-        }
-        .day-row input[type="time"] {
-            width: clamp(85px, 12vw, 95px) !important;
-            max-width: clamp(85px, 12vw, 95px) !important;
-            height: clamp(2.6rem, 4.2vw, 3.2rem) !important;
-            padding: 0 !important;
-            border: 1.5px solid #e5e5e5 !important;
-            border-radius: 6px !important;
-            background: #fafafa !important;
-            font-size: clamp(0.9rem, 1.5vw, 1rem) !important;
-            text-align: center !important;
-            text-align-last: center !important;
-            margin: 0 auto !important;
-            box-sizing: border-box !important;
-            line-height: clamp(2.2rem, 3.8vw, 2.8rem) !important;
-            vertical-align: middle !important;
-            direction: ltr !important;
-        }
-        
-        /* Spezielle Zentrierung für verschiedene Browser */
-        .day-row input[type="time"]::-webkit-datetime-edit {
-            text-align: center !important;
-            padding: 0 !important;
-            margin: 0 auto !important;
-            width: 100% !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-        }
-        
-        .day-row input[type="time"]::-webkit-datetime-edit-fields-wrapper {
-            text-align: center !important;
-            justify-content: center !important;
-            display: flex !important;
-            width: 100% !important;
-        }
-        .day-row input[type="time"]:focus {
-            outline: none !important;
-            border-color: #667eea !important;
-            background: white !important;
-        }
-        .day-row input[type="text"] {
-            height: clamp(2.6rem, 4.2vw, 3.2rem) !important;
-            padding: 0 clamp(0.6rem, 1.2vw, 0.85rem) !important;
-            box-sizing: border-box !important;
-            line-height: normal !important;
-        }
-        .location-container {
-            position: relative;
-            height: clamp(2.6rem, 4.2vw, 3.2rem) !important;
-        }
-        .location-container select, .location-container input {
-            width: 100% !important;
-            height: 100% !important;
-            padding: 0 clamp(0.6rem, 1.2vw, 0.85rem) !important;
-            border: 1.5px solid #e5e5e5 !important;
-            border-radius: 6px !important;
-            background: #fafafa !important;
-            font-size: clamp(0.9rem, 1.5vw, 1rem) !important;
-            box-sizing: border-box !important;
-        }
-        .location-container select:focus, .location-container input:focus {
-            outline: none !important;
-            border-color: #667eea !important;
-            background: white !important;
-        }
-        .success-message, .error-message {
-            padding: clamp(0.8rem, 1.5vw, 1rem);
-            border-radius: 6px;
-            margin-bottom: 1rem;
-            display: none;
-        }
-        .success-message {
-            background: #d9f5e5;
-            color: #0a6e31;
-        }
-        .error-message {
-            background: #ffe5e5;
-            color: #c41e3a;
-        }
-        .loading {
-            display: none;
-            text-align: center;
-            color: #667eea;
-            margin-top: 1rem;
-        }
-        small {
-            color: #6b7280;
-            font-size: clamp(0.75rem, 1.3vw, 0.875rem);
-        }
-        
-        /* RADIO BUTTONS STYLE */
-        .radio-group {
-            display: flex;
-            gap: clamp(0.8rem, 1.5vw, 1rem);
-            margin-top: 0.5rem;
-        }
-        .radio-option {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            cursor: pointer;
-            padding: clamp(0.5rem, 1vw, 0.6rem) clamp(1rem, 2vw, 1.2rem);
-            border: 1.5px solid #e5e5e5;
-            border-radius: 6px;
-            background: #fafafa;
-            transition: all 0.2s;
-        }
-        .radio-option:hover {
-            border-color: #667eea;
-            background: white;
-        }
-        .radio-option input[type="radio"] {
-            width: auto;
-            margin: 0;
-            cursor: pointer;
-            accent-color: #667eea;
-        }
-        .radio-option.selected {
-            border-color: #667eea;
-            background: #f0f3ff;
-        }
-        /* Mobile Anpassung */
-        @media (max-width: 600px) {
-            .header {
-                padding: 1rem clamp(1rem, 3vw, 1.5rem) 0.5rem;
-            }
-            .header h1 {
-                font-size: 1.1rem;
-            }
-            .header img {
-                height: 22px;
-            }
-            .container {
-                padding: 0 clamp(1rem, 3vw, 1.5rem) 1.5rem;
-            }
-            .card {
-                padding: 1.2rem 1rem;
-                margin-bottom: 1rem;
-            }
-            h2 {
-                font-size: 1.15rem;
-                margin-bottom: 1.2rem;
-            }
-            .input-group {
-                margin-bottom: 0.9rem;
-            }
-            label {
-                font-size: 0.88rem;
-                margin-bottom: 0.4rem;
-            }
-            input, select {
-                padding: 0.65rem 0.5rem;
-                font-size: 0.9rem;
-            }
-            input[type="datetime-local"] {
-                padding: 0.6rem 0.4rem;
-                font-size: 0.88rem;
-            }
-            .radio-group {
-                gap: 0.6rem;
-            }
-            .radio-option {
-                padding: 0.55rem 0.9rem;
-                font-size: 0.9rem;
-            }
-            .btn {
-                padding: 0.65rem 1.3rem;
-                font-size: 0.9rem;
-            }
-            small {
-                font-size: 0.8rem;
-            }
-            .day-row {
-                grid-template-columns: 45px 1fr 1fr 75px;
-                gap: 0.45rem;
-                margin-bottom: 0.5rem;
-            }
-            .day-label {
-                font-size: 0.95rem;
-                text-align: center;
-            }
-            .day-row input[type="time"] {
-                padding: 0.6rem 0.2rem !important;
-                font-size: 0.95rem !important;
-                text-align: center !important;
-                max-width: 80px !important;
-                margin: 0 auto !important;
-            }
-            .day-row input[type="text"] {
-                padding: 0.65rem 0.5rem;
-                font-size: 0.95rem;
-            }
-        }
-        @media (max-width: 400px) {
-            .header h1 {
-                font-size: 1rem;
-            }
-            .header img {
-                height: 20px;
-            }
-            h2 {
-                font-size: 1.1rem;
-            }
-            input[type="datetime-local"] {
-                padding: 0.55rem 0.3rem;
-                font-size: 0.85rem;
-            }
-            .day-row {
-                grid-template-columns: 40px 1fr 1fr 70px;
-                gap: 0.4rem;
-            }
-            .day-label {
-                font-size: 0.9rem;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div id="login-screen">
-        <div class="header">
-            <div class="header-flex">
-                <h1>DRK Dashboard Admin</h1>
-                <img src="DRK-Logo_lang_RGB.png" alt="DRK Logo">
-            </div>
-        </div>
-        <div class="container">
-            <div class="card">
-                <h2>Anmelden</h2>
-                <form autocomplete="off" method="post" action="javascript:void(0);">
-                    <!-- Dummy fields to confuse password managers -->
-                    <input type="text" name="fakeusernameremembered" style="position: absolute; top: -9999px; left: -9999px;" tabindex="-1">
-                    <input type="password" name="fakepasswordremembered" style="position: absolute; top: -9999px; left: -9999px;" tabindex="-1">
-                    
-                    <div class="input-group">
-                        <label for="password">Passwort:</label>
-                        <input type="password" 
-                               id="password" 
-                               name="password_field_ignore" 
-                               placeholder="Passwort eingeben" 
-                               autocomplete="new-password"
-                               autocorrect="off" 
-                               autocapitalize="off" 
-                               spellcheck="false"
-                               data-form-type="other"
-                               onkeypress="if(event.key==='Enter') login()">
-                    </div>
-                    <button type="button" class="btn" onclick="login()">Anmelden</button>
-                </form>
-                <div class="error-message" id="login-error">Falsches Passwort!</div>
-            </div>
-        </div>
-    </div>
+<script>
+    const ADMIN_PASSWORD = "drk";
+    const GITHUB_CONFIG = {
+        owner: "l-sayginsoy",
+        repo: "drk-display",
+        branch: "main"
+    };
+    const GITHUB_RAW_BASE = `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/`;
+    let GITHUB_TOKEN = null;
+    
+    let currentDate = new Date();
+    let currentWeekOffset = 0;
+    // Wir speichern die Daten lokal pro Woche, damit sie beim Blättern nicht verloren gehen
+    let weekStorage = {}; 
 
-    <div id="admin-panel" style="display: none;">
-        <div class="header">
-            <div class="header-flex">
-                <h1>DRK Dashboard Admin</h1>
-                <img src="DRK-Logo_lang_RGB.png" alt="DRK Logo">
-            </div>
-        </div>
-        <div class="container">
-            <div class="success-message" id="success-msg"></div>
-            <div class="error-message" id="error-msg"></div>
-            <div class="loading" id="loading">⏳ Lädt Daten...</div>
-
-            <div class="card">
-                <h2>Event-Steuerung</h2>
-                <div class="input-group">
-                    <label>Event aktiv:</label>
-                    <div class="radio-group">
-                        <label class="radio-option">
-                            <input type="radio" name="event-active" value="ja" id="event-active-ja">
-                            <span>Ja</span>
-                        </label>
-                        <label class="radio-option">
-                            <input type="radio" name="event-active" value="nein" id="event-active-nein" checked>
-                            <span>Nein</span>
-                        </label>
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label for="event-image">Bilddatei:</label>
-                    <input type="text" id="event-image" placeholder="z.B. Event.jpg">
-                    <small>Bildname muss genau so heißen wie die hochgeladene Datei!</small>
-                </div>
-                <div class="input-group">
-                    <label for="event-start">Start (optional):</label>
-                    <input type="datetime-local" id="event-start">
-                </div>
-                <div class="input-group">
-                    <label for="event-end">Ende (optional):</label>
-                    <input type="datetime-local" id="event-end">
-                </div>
-                <button class="btn" onclick="saveEvent()" id="save-event-btn">Speichern</button>
-            </div>
-
-            <div class="card">
-                <div class="calendar-navigation">
-                    <button class="btn-nav" onclick="navigateWeek(-1)">← KW</button>
-                    <div class="calendar-header">
-                        <h2 id="calendar-month-year">Januar 2025</h2>
-                        <div class="calendar-week">KW <span id="current-week">3</span></div>
-                    </div>
-                    <button class="btn-nav" onclick="navigateWeek(1)">KW →</button>
-                </div>
-                <div id="weekly-program"></div>
-                <button class="btn" onclick="saveWeeklyProgram()" id="save-program-btn">Speichern</button>
-            </div>
-
-            <div style="text-align: center; margin-top: 2rem;">
-                <button class="btn btn-logout" onclick="logout()">Abmelden</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const ADMIN_PASSWORD = "drk";
-        const GITHUB_CONFIG = {
-            owner: "l-sayginsoy",
-            repo: "drk-display",
-            branch: "main"
-        };
-        const GITHUB_RAW_BASE = `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/`;
-        let GITHUB_TOKEN = null;
-        
-        // Kalender Variablen
-        let currentDate = new Date();
-        let currentWeekOffset = 0; // Offset zur aktuellen Woche
-        
-        // Deutsche Monatsnamen
-        const MONTHS_DE = [
-            'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-            'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
-        ];
-        
-        // Deutsche Wochentage (kurz)
-        const DAYS_DE = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
-        
-        // Kalenderfunktionen
-        function getWeekNumber(date) {
-            const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-            const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
-            return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-        }
-        
-        function getDateOfWeek(year, week, day) {
-            const jan4 = new Date(year, 0, 4);
-            const jan4DayOfWeek = jan4.getDay() || 7;
-            const firstMonday = new Date(jan4.getTime() - (jan4DayOfWeek - 1) * 86400000);
-            const targetWeekStart = new Date(firstMonday.getTime() + (week - 1) * 7 * 86400000);
-            return new Date(targetWeekStart.getTime() + (day - 1) * 86400000);
-        }
-        
-        function getCurrentWeekData() {
-            const today = new Date();
-            const targetDate = new Date(today.getTime() + currentWeekOffset * 7 * 86400000);
-            const weekNumber = getWeekNumber(targetDate);
-            const year = targetDate.getFullYear();
-            const month = MONTHS_DE[targetDate.getMonth()];
-            
-            return { weekNumber, year, month, targetDate };
-        }
-        
-        function updateCalendarHeader() {
-            const { weekNumber, year, month } = getCurrentWeekData();
-            document.getElementById('calendar-month-year').textContent = `${month} ${year}`;
-            document.getElementById('current-week').textContent = weekNumber;
-        }
-        
-        function navigateWeek(direction) {
-            currentWeekOffset += direction;
-            updateCalendarHeader();
-            generateWeekProgram();
-            
-            // Lade gespeicherte Daten auch bei Navigation
-            setTimeout(() => {
-                if (window.savedProgramData) {
-                    loadSavedDataIntoCalendar();
-                }
-            }, 200);
-        }
-        
-        function generateWeekProgram() {
-            const { weekNumber, year } = getCurrentWeekData();
-            const container = document.getElementById('weekly-program');
-            container.innerHTML = '';
-            
-            // Definiere die Standard-Orte
-            const locations = [
-                'Kleiner Saal',
-                'Cafeteria', 
-                'Garten',
-                'Terrasse',
-                'Wohnbereich',
-                'Speisesaal',
-                'Andere...'
-            ];
-            
-            // Generiere 7 Tage der Woche
-            for (let day = 1; day <= 7; day++) {
-                const date = getDateOfWeek(year, weekNumber, day);
-                const dayStr = DAYS_DE[day - 1];
-                const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-                const uniqueId = `${year}-W${weekNumber}-${day}`;
-                
-                const row = document.createElement('div');
-                row.className = 'day-row';
-                
-                // Erstelle Location Dropdown
-                let locationOptions = locations.map(loc => `<option value="${loc}">${loc}</option>`).join('');
-                
-                row.innerHTML = `
-                    <div class="day-label">${dayStr}<br><small>${dateStr}</small></div>
-                    <input type="text" id="title-${uniqueId}" placeholder="Veranstaltung">
-                    <div class="location-container">
-                        <select id="location-${uniqueId}" onchange="handleLocationChange('${uniqueId}')">
-                            <option value="">Ort wählen...</option>
-                            ${locationOptions}
-                        </select>
-                        <input type="text" id="custom-location-${uniqueId}" placeholder="Eigenen Ort eingeben..." style="display: none;">
-                    </div>
-                    <input type="time" id="time-${uniqueId}">
-                    <input type="hidden" id="day-${uniqueId}" value="${dayStr}">
-                    <input type="hidden" id="date-${uniqueId}" value="${dateStr}">
-                `;
-                container.appendChild(row);
-            }
-        }
-        
-        function handleLocationChange(uniqueId) {
-            const select = document.getElementById(`location-${uniqueId}`);
-            const customInput = document.getElementById(`custom-location-${uniqueId}`);
-            
-            if (select.value === 'Andere...') {
-                select.style.display = 'none';
-                customInput.style.display = 'block';
-                customInput.focus();
-            }
-        }
-
-        async function getGitHubToken() {
-            const saved = sessionStorage.getItem("github_token");
-            if (saved && saved.trim()) return saved.trim();
-
-            const token = prompt("GitHub Token eingeben");
-            if (token && token.trim()) {
-                sessionStorage.setItem("github_token", token.trim());
-                return token.trim();
-            }
-            return null;
-        }
-
-        function checkLogin() {
-            const loggedIn = sessionStorage.getItem('admin-logged-in');
-            if (loggedIn === 'true') {
-                showAdmin();
-                initToken();
-            } else {
-                showLogin();
-            }
-        }
-
-       async function initToken() {
-    GITHUB_TOKEN = await getGitHubToken();
-    loadCurrentData();
-    if (!GITHUB_TOKEN) {
-        showSuccess('Kein Token gesetzt. Laden ist aktiv. Speichern zeigt Copy und Paste.');
+    const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+    const DAYS_DE = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
+    
+    function getISOWeek(date) {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
     }
-}
 
-        function login() {
-            const password = document.getElementById('password').value;
-            if (password === ADMIN_PASSWORD) {
-                // Passwort sofort löschen
-                document.getElementById('password').value = '';
-                sessionStorage.setItem('admin-logged-in', 'true');
-                showAdmin();
-                initToken();
-            } else {
-                document.getElementById('login-error').style.display = 'block';
-                setTimeout(() => document.getElementById('login-error').style.display = 'none', 3000);
-            }
-        }
+    function getTargetDate() {
+        const d = new Date();
+        d.setDate(d.getDate() + (currentWeekOffset * 7));
+        return d;
+    }
 
-        function logout() {
-            sessionStorage.clear();
-            GITHUB_TOKEN = null;
-            showLogin();
-        }
+    function updateCalendarHeader() {
+        const d = getTargetDate();
+        document.getElementById('calendar-month-year').textContent = `${MONTHS_DE[d.getMonth()]} ${d.getFullYear()}`;
+        document.getElementById('current-week').textContent = getISOWeek(d);
+    }
 
-        function showLogin() {
-            document.getElementById('login-screen').style.display = 'block';
-            document.getElementById('admin-panel').style.display = 'none';
-        }
-
-        function showAdmin() {
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('admin-panel').style.display = 'block';
-            // Kalender initialisieren
-            updateCalendarHeader();
-            generateWeekProgram();
-        }
-
-        async function loadFileFromGitHub(filename) {
-            try {
-                const response = await fetch(GITHUB_RAW_BASE + filename + '?t=' + Date.now());
-                if (!response.ok) throw new Error('Datei nicht gefunden');
-                return await response.text();
-            } catch (e) {
-                return null;
-            }
-        }
-
-        async function triggerGitHubAction(filename, content, message) {
-            try {
-                const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/dispatches`;
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        event_type: 'update-dashboard',
-                        client_payload: { file: filename, content: content, message: message }
-                    })
-                });
-                if (!response.ok) throw new Error('Fehler');
-                return true;
-            } catch (e) {
-                throw e;
-            }
-        }
-
-        async function loadCurrentData() {
-            document.getElementById('loading').style.display = 'block';
-            try {
-                const eventText = await loadFileFromGitHub('event.txt');
-                if (eventText) parseEventData(eventText);
-                const programText = await loadFileFromGitHub('wochenprogramm.txt');
-                if (programText) loadWeeklyProgramData(programText);
-            } catch (e) {
-                showError('Fehler beim Laden');
-            } finally {
-                document.getElementById('loading').style.display = 'none';
-            }
-        }
+    function navigateWeek(direction) {
+        // Vor dem Blättern: Aktuelle Eingaben im Cache (weekStorage) zwischenspeichern
+        saveToCache();
         
-        function loadWeeklyProgramData(text) {
-            // Speichere die geladenen Daten global für später
-            window.savedProgramData = {};
-            const lines = text.trim().split('\n');
-            
-            lines.forEach(line => {
-                const [day, title, location, time] = line.split('|');
-                if (day && day.trim()) {
-                    window.savedProgramData[day.trim()] = {
-                        title: title ? title.trim() : '',
-                        location: location ? location.trim() : '',
-                        time: time ? time.trim() : ''
-                    };
-                }
-            });
-            
-            console.log('Loaded program data:', window.savedProgramData);
-            
-            // Warte bis die Kalenderansicht komplett geladen ist
-            setTimeout(() => {
-                loadSavedDataIntoCalendar();
-            }, 500); // Längere Verzögerung
-        }
+        currentWeekOffset += direction;
+        updateCalendarHeader();
+        generateWeekProgram();
         
-        function loadSavedDataIntoCalendar() {
-            if (!window.savedProgramData) return;
-            
-            const rows = document.querySelectorAll('#weekly-program .day-row');
-            console.log('Found rows:', rows.length);
-            
-            rows.forEach((row, index) => {
-                const dayInput = row.querySelector('input[id*="day-"]');
-                if (!dayInput) return;
-                
-                const dayKey = dayInput.value;
-                const data = window.savedProgramData[dayKey];
-                
-                if (data) {
-                    console.log(`Loading data for ${dayKey}:`, data);
-                    
-                    // Titel setzen
-                    const titleInput = row.querySelector('input[id*="title-"]');
-                    if (titleInput) {
-                        titleInput.value = data.title;
-                    }
-                    
-                    // Zeit setzen
-                    const timeInput = row.querySelector('input[id*="time-"]');
-                    if (timeInput) {
-                        timeInput.value = data.time;
-                    }
-                    
-                    // Ort setzen (Dropdown oder Custom)
-                    const locationSelect = row.querySelector('select[id*="location-"]');
-                    const customLocationInput = row.querySelector('input[id*="custom-location-"]');
-                    
-                    if (locationSelect && data.location) {
-                        // Prüfe ob der Ort im Dropdown existiert
-                        const option = Array.from(locationSelect.options).find(opt => opt.value === data.location);
-                        if (option) {
-                            locationSelect.value = data.location;
-                        } else {
-                            // Custom Ort
-                            locationSelect.value = 'Andere...';
-                            if (customLocationInput) {
-                                locationSelect.style.display = 'none';
-                                customLocationInput.style.display = 'block';
-                                customLocationInput.value = data.location;
-                            }
-                        }
-                    }
-                }
-            });
-        }
+        // Nach dem Blättern: Schauen, ob wir für diese Woche schon Daten im Cache haben
+        loadFromCache();
+    }
 
-        function parseEventData(text) {
-            const lines = text.trim().split('\n');
-            const data = {};
-            lines.forEach(line => {
-                const [key, ...valueParts] = line.split(':');
-                const value = valueParts.join(':').trim();
-                if (key) data[key.trim()] = value;
-            });
+    function generateWeekProgram() {
+        const container = document.getElementById('weekly-program');
+        container.innerHTML = '';
+        const locations = ['Kleiner Saal', 'Cafeteria', 'Garten', 'Terrasse', 'Wohnbereich', 'Speisesaal', 'Andere...'];
+        
+        DAYS_DE.forEach((day) => {
+            const row = document.createElement('div');
+            row.className = 'day-row';
+            row.innerHTML = `
+                <div class="day-label">${day}</div>
+                <input type="text" class="input-title" placeholder="Veranstaltung" data-day="${day}">
+                <div class="location-container">
+                    <select class="select-location" data-day="${day}" onchange="checkCustomLoc(this)">
+                        <option value="">Ort wählen...</option>
+                        ${locations.map(loc => `<option value="${loc}">${loc}</option>`).join('')}
+                    </select>
+                    <input type="text" class="custom-location" placeholder="Anderer Ort..." style="display:none;" data-day="${day}">
+                </div>
+                <input type="time" class="input-time" data-day="${day}">
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function checkCustomLoc(select) {
+        const customInput = select.parentElement.querySelector('.custom-location');
+        if (select.value === 'Andere...') {
+            select.style.display = 'none';
+            customInput.style.display = 'block';
+            customInput.focus();
+        }
+    }
+
+    function saveToCache() {
+        const weekKey = `W${getISOWeek(getTargetDate())}-${getTargetDate().getFullYear()}`;
+        const data = [];
+        document.querySelectorAll('.day-row').forEach(row => {
+            const day = row.querySelector('.day-label').textContent;
+            const title = row.querySelector('.input-title').value;
+            const sel = row.querySelector('.select-location');
+            const cus = row.querySelector('.custom-location');
+            const time = row.querySelector('.input-time').value;
+            const location = (cus.style.display === 'block') ? cus.value : sel.value;
             
-            // Radio buttons setzen
-            const aktiv = data.aktiv || 'nein';
-            if (aktiv === 'ja') {
-                document.getElementById('event-active-ja').checked = true;
-            } else {
-                document.getElementById('event-active-nein').checked = true;
+            if (title || location || time) {
+                data.push({ day, title, location, time });
             }
-            
-            document.getElementById('event-image').value = data.bild || '';
-            if (data.start) {
-                try {
-                    const startDate = new Date(data.start);
-                    document.getElementById('event-start').value = formatDateTimeLocal(startDate);
-                } catch (e) {}
-            }
-            if (data.ende) {
-                try {
-                    const endDate = new Date(data.ende);
-                    document.getElementById('event-end').value = formatDateTimeLocal(endDate);
-                } catch (e) {}
-            }
-        }
+        });
+        weekStorage[weekKey] = data;
+    }
 
-        function formatDateTimeLocal(date) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            return `${year}-${month}-${day}T${hours}:${minutes}`;
-        }
-
-        async function saveEvent() {
-            const btn = document.getElementById('save-event-btn');
-            btn.disabled = true;
-            btn.textContent = '⏳ Speichert...';
-            try {
-                // Radio button Wert lesen
-                const active = document.querySelector('input[name="event-active"]:checked').value;
-                const image = document.getElementById('event-image').value;
-                const start = document.getElementById('event-start').value;
-                const end = document.getElementById('event-end').value;
-                let content = `aktiv: ${active}\n`;
-                content += `bild: ${image}\n`;
-                content += `start: ${start ? new Date(start).toISOString().slice(0, 16) : ''}\n`;
-                content += `ende: ${end ? new Date(end).toISOString().slice(0, 16) : ''}`;
-                await triggerGitHubAction('event.txt', content, 'Event aktualisiert');
-                showSuccess('✅ Event gespeichert!');
-            } catch (e) {
-                showError('❌ Fehler: ' + e.message);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Speichern';
-            }
-        }
-
-        async function saveWeeklyProgram() {
-            const btn = document.getElementById('save-program-btn');
-            btn.disabled = true;
-            btn.textContent = '⏳ Speichert...';
-            try {
-                const rows = document.querySelectorAll('#weekly-program .day-row');
-                let content = '';
-                rows.forEach((row) => {
-                    // Finde die versteckten day und date Felder
-                    const dayInput = row.querySelector('input[id*="day-"]');
-                    const titleInput = row.querySelector('input[id*="title-"]');
-                    const locationSelect = row.querySelector('select[id*="location-"]');
-                    const customLocationInput = row.querySelector('input[id*="custom-location-"]');
-                    const timeInput = row.querySelector('input[id*="time-"]');
-                    
-                    if (dayInput && titleInput && locationSelect && timeInput) {
-                        const day = dayInput.value;
-                        const title = titleInput.value || '';
-                        
-                        // Bestimme den Ort: Entweder Dropdown oder Custom Input
-                        let location = '';
-                        if (customLocationInput && customLocationInput.style.display !== 'none') {
-                            location = customLocationInput.value || '';
-                        } else {
-                            location = locationSelect.value === 'Andere...' ? '' : (locationSelect.value || '');
-                        }
-                        
-                        const time = timeInput.value || '';
-                        content += `${day}|${title}|${location}|${time}\n`;
-                    }
-                });
-                
-                if (GITHUB_TOKEN) {
-                    // Automatisch speichern
-                    await triggerGitHubAction('wochenprogramm.txt', content.trim(), 'Wochenprogramm aktualisiert');
-                    showSuccess('✅ Wochenprogramm gespeichert!');
+    function loadFromCache() {
+        const weekKey = `W${getISOWeek(getTargetDate())}-${getTargetDate().getFullYear()}`;
+        const data = weekStorage[weekKey] || [];
+        
+        document.querySelectorAll('.day-row').forEach(row => {
+            const day = row.querySelector('.day-label').textContent;
+            const entry = data.find(d => d.day === day);
+            if (entry) {
+                row.querySelector('.input-title').value = entry.title;
+                row.querySelector('.input-time').value = entry.time;
+                const sel = row.querySelector('.select-location');
+                const cus = row.querySelector('.custom-location');
+                if (['Kleiner Saal', 'Cafeteria', 'Garten', 'Terrasse', 'Wohnbereich', 'Speisesaal', ''].includes(entry.location)) {
+                    sel.value = entry.location;
+                    sel.style.display = 'block';
+                    cus.style.display = 'none';
                 } else {
-                    // Daten zum Copy & Paste anzeigen
-                    const textarea = document.createElement('textarea');
-                    textarea.value = content.trim();
-                    textarea.style.width = '100%';
-                    textarea.style.height = '200px';
-                    textarea.style.fontFamily = 'monospace';
-                    textarea.style.fontSize = '14px';
-                    textarea.style.marginTop = '10px';
-                    
-                    const msg = document.getElementById('success-msg');
-                    msg.innerHTML = `
-                        <strong>📋 Daten bereit zum Kopieren:</strong><br>
-                        Gehe zu GitHub → <code>wochenprogramm.txt</code> → Inhalt ersetzen:
-                    `;
-                    msg.appendChild(textarea);
-                    msg.style.display = 'block';
-                    
-                    textarea.select();
-                    setTimeout(() => msg.style.display = 'none', 30000);
+                    sel.value = 'Andere...';
+                    sel.style.display = 'none';
+                    cus.style.display = 'block';
+                    cus.value = entry.location;
                 }
-            } catch (e) {
-                showError('❌ Fehler: ' + e.message);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Speichern';
             }
-        }
+        });
+    }
 
-        function showSuccess(message) {
-            const msg = document.getElementById('success-msg');
-            msg.textContent = message;
-            msg.style.display = 'block';
-            setTimeout(() => msg.style.display = 'none', 6000);
+    async function login() {
+        if (document.getElementById('password').value === ADMIN_PASSWORD) {
+            GITHUB_TOKEN = await getGitHubToken();
+            if (GITHUB_TOKEN) {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('admin-panel').style.display = 'block';
+                updateCalendarHeader();
+                generateWeekProgram();
+                await loadAllDataFromGitHub();
+            }
+        } else {
+            alert("Falsches Passwort");
         }
+    }
 
-        function showError(message) {
-            const msg = document.getElementById('error-msg');
-            msg.textContent = message;
-            msg.style.display = 'block';
-            setTimeout(() => msg.style.display = 'none', 6000);
+    async function getGitHubToken() {
+        let token = sessionStorage.getItem("gh_token");
+        if (!token) {
+            token = prompt("Bitte GitHub Token eingeben:");
+            if (token) sessionStorage.setItem("gh_token", token);
         }
+        return token;
+    }
 
-        checkLogin();
-    </script>
-</body>
-</html>
+    async function loadAllDataFromGitHub() {
+        try {
+            const resp = await fetch(`${GITHUB_RAW_BASE}wochenprogramm.txt?t=${Date.now()}`);
+            if (resp.ok) {
+                const text = await resp.text();
+                // Da die Hauptseite nur 7 Zeilen versteht, laden wir diese in die AKTUELLE Woche des Admins
+                const lines = text.split('\n').filter(l => l.includes('|'));
+                const weekKey = `W${getISOWeek(getTargetDate())}-${getTargetDate().getFullYear()}`;
+                weekStorage[weekKey] = lines.map(l => {
+                    const [day, title, location, time] = l.split('|');
+                    return { day, title, location, time };
+                });
+                loadFromCache();
+            }
+        } catch (e) { console.error("Ladefehler", e); }
+    }
+
+    async function saveWeeklyProgram() {
+        const btn = document.getElementById('save-program-btn');
+        btn.disabled = true;
+        btn.textContent = "Speichert...";
+
+        saveToCache(); // Aktuellen Stand sichern
+        
+        const weekKey = `W${getISOWeek(getTargetDate())}-${getTargetDate().getFullYear()}`;
+        const currentData = weekStorage[weekKey] || [];
+        
+        // Wir erstellen genau 7 Zeilen (für jeden Tag eine), damit die Hauptseite nicht verwirrt ist
+        const outputLines = DAYS_DE.map(day => {
+            const entry = currentData.find(d => d.day === day) || { title: '', location: '', time: '' };
+            return `${day}|${entry.title}|${entry.location}|${entry.time}`;
+        });
+
+        const content = outputLines.join('\n');
+
+        try {
+            const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/dispatches`;
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify({ 
+                    event_type: 'update-dashboard', 
+                    client_payload: { file: 'wochenprogramm.txt', content: content, message: `Update für KW ${getISOWeek(getTargetDate())}` } 
+                })
+            });
+
+            if (resp.ok) {
+                alert("✅ Gespeichert! Die Hauptseite zeigt nun diese Woche an. (Update dauert ca. 30 Sek.)");
+            } else {
+                throw new Error("GitHub API Fehler");
+            }
+        } catch (e) {
+            alert("Fehler: " + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Speichern";
+        }
+    }
+
+    function logout() {
+        sessionStorage.clear();
+        location.reload();
+    }
+</script>
