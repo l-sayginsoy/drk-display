@@ -589,6 +589,7 @@
                     <input type="time" id="time-${uniqueId}">
                     <input type="hidden" id="day-${uniqueId}" value="${dayStr}">
                     <input type="hidden" id="date-${uniqueId}" value="${dateStr}">
+                    <input type="hidden" id="key-${uniqueId}" value="${uniqueId}">
                 `;
                 container.appendChild(row);
             }
@@ -681,7 +682,8 @@
 
             const apiBase = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${filename}`;
 
-            // Aktuelle Datei holen, um die SHA zu bekommen
+            // SHA holen (wenn Datei existiert)
+            let sha = null;
             const getResp = await fetch(`${apiBase}?ref=${GITHUB_CONFIG.branch}`, {
                 headers: {
                     'Authorization': `Bearer ${GITHUB_TOKEN}`,
@@ -689,14 +691,21 @@
                 }
             });
 
-            if (!getResp.ok) {
+            if (getResp.ok) {
+                const current = await getResp.json();
+                sha = current.sha;
+            } else if (getResp.status !== 404) {
                 const t = await getResp.text();
                 throw new Error('Datei laden fehlgeschlagen: ' + t);
             }
 
-            const current = await getResp.json();
+            const body = {
+                message: message || `Update ${filename}`,
+                content: toBase64Utf8(content),
+                branch: GITHUB_CONFIG.branch
+            };
+            if (sha) body.sha = sha;
 
-            // Datei aktualisieren
             const putResp = await fetch(apiBase, {
                 method: 'PUT',
                 headers: {
@@ -704,12 +713,7 @@
                     'Accept': 'application/vnd.github+json',
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    message: message || `Update ${filename}`,
-                    content: toBase64Utf8(content),
-                    sha: current.sha,
-                    branch: GITHUB_CONFIG.branch
-                })
+                body: JSON.stringify(body)
             });
 
             if (!putResp.ok) {
@@ -737,27 +741,43 @@
         }
         
         function loadWeeklyProgramData(text) {
-            // Speichere die geladenen Daten global für später
             window.savedProgramData = {};
-            const lines = text.trim().split('\n');
-            
+            const lines = text.trim().split('
+');
+
             lines.forEach(line => {
-                const [day, title, location, time] = line.split('|');
-                if (day && day.trim()) {
-                    window.savedProgramData[day.trim()] = {
-                        title: title ? title.trim() : '',
-                        location: location ? location.trim() : '',
-                        time: time ? time.trim() : ''
+                const parts = line.split('|');
+                // Neues Format: key|day|title|location|time|date
+                if (parts.length >= 6) {
+                    const [key, day, title, location, time, date] = parts;
+                    if (key && key.trim()) {
+                        window.savedProgramData[key.trim()] = {
+                            day: day ? day.trim() : '',
+                            title: title ? title.trim() : '',
+                            location: location ? location.trim() : '',
+                            time: time ? time.trim() : '',
+                            date: date ? date.trim() : ''
+                        };
+                    }
+                    return;
+                }
+
+                // Altes Format: day|title|location|time
+                const [dayOld, titleOld, locationOld, timeOld] = parts;
+                if (dayOld && dayOld.trim()) {
+                    // Wir speichern alte Daten unter dem Tag, werden sie aber nur als Fallback nutzen.
+                    window.savedProgramData[dayOld.trim()] = {
+                        day: dayOld.trim(),
+                        title: titleOld ? titleOld.trim() : '',
+                        location: locationOld ? locationOld.trim() : '',
+                        time: timeOld ? timeOld.trim() : ''
                     };
                 }
             });
-            
-            console.log('Loaded program data:', window.savedProgramData);
 
-            // Einmalig in die aktuelle Kalenderansicht schreiben
             loadSavedDataIntoCalendar();
         }
-        
+
         function loadSavedDataIntoCalendar() {
             if (!window.savedProgramData) return;
             
@@ -769,7 +789,9 @@
                 if (!dayInput) return;
                 
                 const dayKey = dayInput.value;
-                const data = window.savedProgramData[dayKey];
+                const keyInput = row.querySelector('input[id*="key-"]');
+                const key = keyInput ? keyInput.value : '';
+                const data = (key && window.savedProgramData[key]) ? window.savedProgramData[key] : window.savedProgramData[dayKey];
                 
                 if (data) {
                     console.log(`Loading data for ${dayKey}:`, data);
@@ -928,7 +950,12 @@
                         }
                         
                         const time = timeInput.value || '';
-                        content += `${day}|${title}|${location}|${time}\n`;
+                        const keyInput = row.querySelector('input[id*="key-"]');
+                        const key = keyInput ? keyInput.value : '';
+                        const dateInput = row.querySelector('input[id*="date-"]');
+                        const date = dateInput ? dateInput.value : '';
+                        content += `${key}|${day}|${title}|${location}|${time}|${date}
+`;
                     }
                 });
                 
