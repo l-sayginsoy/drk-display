@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import WeatherBackground from './components/WeatherBackground';
 import WeeklyProgram from './components/WeeklyProgram';
@@ -48,9 +49,9 @@ const App: React.FC = () => {
           const d = new Date(); d.setDate(d.getDate() + i);
           forecast.push({
             day: days[d.getDay()],
-            icon: mapWeatherCode(data.daily.weather_code).icon,
-            max: Math.round(data.daily.temperature_2m_max),
-            min: Math.round(data.daily.temperature_2m_min)
+            icon: mapWeatherCode(data.daily.weather_code[i]).icon,
+            max: Math.round(data.daily.temperature_2m_max[i]),
+            min: Math.round(data.daily.temperature_2m_min[i])
           });
         }
         setWeather({
@@ -58,8 +59,8 @@ const App: React.FC = () => {
           code: data.current.weather_code,
           isDay: data.current.is_day === 1,
           condition,
-          max: Math.round(data.daily.temperature_2m_max),
-          min: Math.round(data.daily.temperature_2m_min),
+          max: Math.round(data.daily.temperature_2m_max[0]),
+          min: Math.round(data.daily.temperature_2m_min[0]),
           forecast
         });
       }
@@ -82,10 +83,10 @@ const App: React.FC = () => {
       {/* Environmental Engine Background */}
       <WeatherBackground code={weather?.code} isDay={currentIsDay} />
 
-      {/* Header */}
-      <header className="h-[12vh] flex items-end px-[4vw] pb-[2vh] shrink-0 z-20">
+      {/* Header - Bleibt bei 15vh für den Abstand nach oben */}
+      <header className="h-[15vh] flex items-end px-[4vw] pb-[3vh] shrink-0 z-20">
         <div className="flex items-center gap-6 drop-shadow-2xl">
-          <span className="text-[8vh] font-[900] tracking-tighter tabular-nums">
+          <span className="text-[8vh] font-[900] tracking-tighter tabular-nums leading-none">
             {time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
           </span>
           <div className="h-[5vh] w-0.5 bg-white/30"></div>
@@ -102,11 +103,11 @@ const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 flex px-[4vw] py-[2vh] gap-[3vw] min-h-0 z-10">
-        {/* MealDisplay jetzt breiter (flex-[2]) */}
-        <div className="flex-[2] h-full overflow-hidden">
+        {/* MealDisplay auf flex-[2.2] angepasst (Mittelweg zwischen 1.6 und 3) */}
+        <div className="flex-[2.2] h-full overflow-hidden">
           <MealDisplay override={override} />
         </div>
-        {/* WeeklyProgram jetzt schmaler (flex-[1]) */}
+        {/* WeeklyProgram flex-[1] belassen */}
         <div className="flex-[1] h-full overflow-hidden">
           <WeeklyProgram programs={programs} />
         </div>
