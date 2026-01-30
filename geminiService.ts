@@ -1,25 +1,26 @@
+
 import { GoogleGenAI } from "@google/genai";
 
 export const suggestActivity = async (day: string, location: string) => {
   try {
-    // Nutzt die Vite-Umgebungsvariable für den Key
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) return "Gemeinsames Singen";
-
-    const ai = new GoogleGenAI(apiKey);
-    const model = ai.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
-      systemInstruction: "Du bist ein erfahrener Ergotherapeut im DRK Seniorenheim."
-    });
+    // API-Key wird direkt aus der Umgebungsvariable bezogen
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    const prompt = `Gib mir einen kreativen Vorschlag für eine Senioren-Aktivität im Altenheim. 
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Gib mir einen kreativen Vorschlag für eine Senioren-Aktivität im Altenheim. 
       Tag: ${day}
       Ort: ${location}
-      Antworte nur mit dem Namen der Aktivität (maximal 3-4 Wörter).`;
+      Antworte nur mit dem Namen der Aktivität (maximal 3-4 Wörter).`,
+      config: {
+        systemInstruction: "Du bist ein erfahrener Ergotherapeut im DRK Seniorenheim.",
+        temperature: 0.8,
+      }
+    });
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text().trim() || "Kaffee & Kuchen";
+    // WICHTIG: .text ist eine Eigenschaft, kein Methodenaufruf!
+    const text = response.text;
+    return text?.trim() || "Kaffee & Kuchen";
   } catch (error) {
     console.error("Gemini API Error:", error);
     return "Gemeinsames Singen";
