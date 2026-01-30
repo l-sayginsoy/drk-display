@@ -1,4 +1,3 @@
-
 export interface GitHubConfig {
   token: string;
   owner: string;
@@ -9,7 +8,23 @@ export interface GitHubConfig {
 
 export const getGitHubConfig = (): GitHubConfig | null => {
   const saved = localStorage.getItem('drk_github_config');
-  return saved ? JSON.parse(saved) : null;
+  if (saved) {
+    return JSON.parse(saved);
+  }
+  
+  // Fallback mit Umgebungsvariable
+  const envToken = import.meta.env.VITE_GITHUB_TOKEN;
+  if (envToken) {
+    return {
+      token: envToken,
+      owner: 'l-sayginsoy',
+      repo: 'drk-display',
+      path: 'wochenprogramm.txt',
+      branch: 'main'
+    };
+  }
+  
+  return null;
 };
 
 export const saveGitHubConfig = (config: GitHubConfig) => {
@@ -59,12 +74,16 @@ export const fetchFileFromGitHub = async (config: GitHubConfig, specificPath?: s
     const content = b64_to_utf8(data.content);
     return { content, sha: data.sha };
   } catch (error) {
-    console.error("Fetch Error:", error);
+    console.error("GitHub Fetch Error:", error);
     throw error;
   }
 };
 
 export const updateFileOnGitHub = async (config: GitHubConfig, content: string, sha: string | null, specificPath?: string) => {
+  if (!config.token) {
+    throw new Error('GitHub Token nicht gefunden - bitte in den Einstellungen hinterlegen');
+  }
+  
   const filePath = specificPath || config.path;
   const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${filePath}`;
   

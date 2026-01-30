@@ -1,10 +1,15 @@
-
 import { GoogleGenAI } from "@google/genai";
 
 export const suggestActivity = async (day: string, location: string) => {
   try {
-    // API-Key wird direkt aus der Umgebungsvariable bezogen
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // API-Key wird aus der Vercel Umgebungsvariable bezogen
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn("Gemini API Key nicht gefunden in Umgebungsvariablen");
+      return "Kaffee & Kuchen";
+    }
+    
+    const ai = new GoogleGenAI({ apiKey });
     
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
