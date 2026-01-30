@@ -1,8 +1,5 @@
 {
-  "name": "DRK Display Admin",
-  "description": "Administrative Steuerung für das DRK Bewohner-Informationsdisplay. Verwalten von Wochenplänen und Event-Hinweisen.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone"
-  ]
+  "name": "drk-display",
+  "description": "Ein modernes Informationsdisplay für die DRK Begegnungsstätte Melm mit Wetter, Speiseplan und Wochenprogramm.",
+  "requestFramePermissions": []
 }
