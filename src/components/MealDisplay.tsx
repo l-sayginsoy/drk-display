@@ -15,12 +15,17 @@ const MealDisplay: React.FC<{ override: EventOverride | null }> = ({ override })
 
   const imageFile = getCurrentMealImage();
   
-  // Direkte Pfadlogik für den public-Ordner
-  const imageUrl = imageFile.startsWith('http') 
-    ? imageFile 
-    : `/${imageFile}`;
+  let imageUrl: string;
+  if (imageFile.startsWith('http')) {
+    imageUrl = imageFile;
+  } else if (override?.active && override.image === imageFile) {
+    imageUrl = `${GITHUB_RAW_BASE}${imageFile}`;
+  } else {
+    // encodeURI sorgt dafür, dass Umlaute wie 'ü' korrekt in URLs umgewandelt werden
+    imageUrl = `/${encodeURI(imageFile)}`;
+  }
 
-  const fallbackUrl = `/${DEFAULT_MEAL_IMAGE}`;
+  const fallbackUrl = `/${encodeURI(DEFAULT_MEAL_IMAGE)}`;
 
   return (
     <div className="h-full w-full rounded-[3vh] overflow-hidden shadow-2xl bg-slate-900 border border-white/10 relative">
@@ -28,10 +33,10 @@ const MealDisplay: React.FC<{ override: EventOverride | null }> = ({ override })
         key={imageUrl}
         src={imageUrl} 
         alt="Speiseplan" 
-        className="h-full w-full object-cover transition-opacity duration-500"
+        className="h-full w-full object-cover transition-opacity duration-1000"
         onError={(e) => {
           const img = e.target as HTMLImageElement;
-          if (!img.src.includes(fallbackUrl)) {
+          if (!img.src.includes(encodeURI(DEFAULT_MEAL_IMAGE))) {
             img.src = fallbackUrl;
           }
         }}
