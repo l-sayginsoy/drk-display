@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Lock, ChevronLeft, ChevronRight, Calendar, 
-  Image as ImageIcon, Clock, CheckCircle2, AlertCircle, 
+  ImageIcon, Clock, CheckCircle2, AlertCircle, 
   Sparkles, Loader2, Settings, Github, X, Cloud
 } from 'lucide-react';
 import { WeeklyActivity, EventConfig } from './types.ts';
@@ -23,7 +23,8 @@ export default function App() {
   const [githubConfig, setGithubConfig] = useState<GitHubConfig>(() => {
     const saved = getGitHubConfig();
     return saved || {
-      token: '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',
+      // Hier wurde die Änderung für die Sicherheit vorgenommen:
+      token: import.meta.env.VITE_GITHUB_TOKEN || '',
       owner: 'l-sayginsoy', 
       repo: 'drk-display', 
       path: 'wochenprogramm.txt', 
@@ -63,8 +64,8 @@ export default function App() {
         lines.forEach(line => {
           const parts = line.split('|').map(s => s.trim());
           if (parts.length >= 5) {
-            const id = `${parts[0]}-${parts[1]}`;
-            newActivities[id] = { id, day: parts[1], title: parts[2], location: parts[3], time: parts[4] };
+            const id = `${parts}-${parts}`;
+            newActivities[id] = { id, day: parts, title: parts, location: parts, time: parts };
           }
         });
         setActivities(newActivities);
@@ -331,34 +332,34 @@ export default function App() {
           <div className="space-y-8">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] ml-6">Event Steuerung</h3>
             <section className="bg-slate-900 text-white rounded-[3.5rem] p-10 shadow-2xl space-y-8">
-               <div className="flex items-center gap-6">
-                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${eventConfig.active ? 'bg-emerald-500 shadow-xl shadow-emerald-500/30' : 'bg-white/10'}`}>
-                   <ImageIcon size={28}/>
-                 </div>
-                 <div>
-                   <h4 className="font-black uppercase tracking-tighter text-xl leading-none">Event-Modus</h4>
-                   <p className="text-[9px] text-white/40 uppercase tracking-widest mt-2">Status: {eventConfig.active ? 'AKTIV' : 'AUS'}</p>
-                 </div>
-               </div>
+                <div className="flex items-center gap-6">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${eventConfig.active ? 'bg-emerald-500 shadow-xl shadow-emerald-500/30' : 'bg-white/10'}`}>
+                    <ImageIcon size={28}/>
+                  </div>
+                  <div>
+                    <h4 className="font-black uppercase tracking-tighter text-xl leading-none">Event-Modus</h4>
+                    <p className="text-[9px] text-white/40 uppercase tracking-widest mt-2">Status: {eventConfig.active ? 'AKTIV' : 'AUS'}</p>
+                  </div>
+                </div>
 
-               <div className="grid grid-cols-2 gap-2 bg-white/5 p-1 rounded-2xl">
-                 <button onClick={() => setEventConfig(p => ({...p, active: true}))} className={`py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${eventConfig.active ? 'bg-white text-slate-900' : 'text-white/30'}`}>Ein</button>
-                 <button onClick={() => setEventConfig(p => ({...p, active: false}))} className={`py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${!eventConfig.active ? 'bg-red-600 text-white' : 'text-white/30'}`}>Aus</button>
-               </div>
+                <div className="grid grid-cols-2 gap-2 bg-white/5 p-1 rounded-2xl">
+                  <button onClick={() => setEventConfig(p => ({...p, active: true}))} className={`py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${eventConfig.active ? 'bg-white text-slate-900' : 'text-white/30'}`}>Ein</button>
+                  <button onClick={() => setEventConfig(p => ({...p, active: false}))} className={`py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${!eventConfig.active ? 'bg-red-600 text-white' : 'text-white/30'}`}>Aus</button>
+                </div>
 
-               <div className="space-y-4">
-                 <input type="text" value={eventConfig.image} onChange={e => setEventConfig(p => ({...p, image: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 outline-none font-bold text-sm" placeholder="Bild-Dateiname..." />
-                 <div className="grid grid-cols-1 gap-4">
-                   <div className="space-y-2">
-                     <label className="text-[9px] font-black text-white/30 uppercase ml-1">Beginn</label>
-                     <input type="datetime-local" value={eventConfig.start} onChange={e => setEventConfig(p => ({...p, start: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs font-black outline-none" />
-                   </div>
-                   <div className="space-y-2">
-                     <label className="text-[9px] font-black text-white/30 uppercase ml-1">Ende</label>
-                     <input type="datetime-local" value={eventConfig.end} onChange={e => setEventConfig(p => ({...p, end: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs font-black outline-none" />
-                   </div>
-                 </div>
-               </div>
+                <div className="space-y-4">
+                  <input type="text" value={eventConfig.image} onChange={e => setEventConfig(p => ({...p, image: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 outline-none font-bold text-sm" placeholder="Bild-Dateiname..." />
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-white/30 uppercase ml-1">Beginn</label>
+                      <input type="datetime-local" value={eventConfig.start} onChange={e => setEventConfig(p => ({...p, start: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs font-black outline-none" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-white/30 uppercase ml-1">Ende</label>
+                      <input type="datetime-local" value={eventConfig.end} onChange={e => setEventConfig(p => ({...p, end: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs font-black outline-none" />
+                    </div>
+                  </div>
+                </div>
             </section>
           </div>
         </div>
