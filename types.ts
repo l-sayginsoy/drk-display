@@ -1,51 +1,22 @@
 
-export interface WeeklyProgram {
+export interface WeeklyActivity {
+  id: string; // Format: YYYY-Www-DAY
   day: string;
   title: string;
   location: string;
   time: string;
 }
 
-export interface EventOverride {
+export interface EventConfig {
   active: boolean;
-  image: string | null;
-  start: string | null;
-  end: string | null;
+  image: string;
+  start: string;
+  end: string;
 }
 
-export interface ForecastDay {
-  day: string;
-  icon: string;
-  max: number;
-  min: number;
-}
-
-export interface WeatherData {
-  temp: number;
-  code: number;
-  isDay: boolean;
-  condition: string;
-  max: number;
-  min: number;
-  forecast: ForecastDay[];
-}
-
-export interface StatsItem {
+export interface WeekInfo {
+  year: number;
+  weekNumber: number;
   label: string;
-  value: string;
-  trend: number;
-  icon: string;
-}
-
-export interface Insight {
-  id: string;
-  title: string;
-  description: string;
-  category: 'efficiency' | 'growth' | 'risk';
-  timestamp: string;
-}
-
-export interface SearchResult {
-  title: string;
-  uri: string;
+  startDate: Date;
 }
