@@ -3,7 +3,9 @@ import { GoogleGenAI } from "@google/genai";
 
 export const suggestActivity = async (day: string, location: string) => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    // API-Key wird direkt aus der Umgebungsvariable bezogen
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Gib mir einen kreativen Vorschlag für eine Senioren-Aktivität im Altenheim. 
@@ -15,9 +17,12 @@ export const suggestActivity = async (day: string, location: string) => {
         temperature: 0.8,
       }
     });
-    return response.text?.trim() || "Kaffee & Kuchen";
+
+    // WICHTIG: .text ist eine Eigenschaft, kein Methodenaufruf!
+    const text = response.text;
+    return text?.trim() || "Kaffee & Kuchen";
   } catch (error) {
-    console.error("Gemini Error:", error);
+    console.error("Gemini API Error:", error);
     return "Gemeinsames Singen";
   }
 };

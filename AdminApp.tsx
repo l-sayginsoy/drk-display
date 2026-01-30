@@ -5,12 +5,11 @@ import {
   Image as ImageIcon, Clock, CheckCircle2, AlertCircle, 
   Sparkles, Loader2, Settings, Github, X, Cloud
 } from 'lucide-react';
-import { WeeklyActivity, EventConfig } from './types.ts';
-import { suggestActivity } from './geminiService.ts';
-import { fetchFileFromGitHub, updateFileOnGitHub, getGitHubConfig, saveGitHubConfig, GitHubConfig } from './githubService.ts';
+import { WeeklyActivity, EventConfig } from './types';
+import { suggestActivity } from './geminiService';
+import { fetchFileFromGitHub, updateFileOnGitHub, getGitHubConfig, saveGitHubConfig, GitHubConfig } from './githubService';
 
 const ADMIN_PASSWORD = "drk";
-const BUILD_TIME = "30.01.2025 - 01:25"; 
 
 export default function AdminApp() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -57,7 +56,7 @@ export default function AdminApp() {
     try {
       setIsSyncing(true);
       const progRes = await fetchFileFromGitHub(githubConfig);
-      if (progRes.content) {
+      if (progRes && progRes.content) {
         const lines = progRes.content.split('\n');
         const newActivities: Record<string, WeeklyActivity> = {};
         lines.forEach(line => {
@@ -71,12 +70,11 @@ export default function AdminApp() {
       }
       try {
         const eventRes = await fetchFileFromGitHub(githubConfig, 'event.json');
-        if (eventRes.content) setEventConfig(JSON.parse(eventRes.content));
+        if (eventRes && eventRes.content) setEventConfig(JSON.parse(eventRes.content));
       } catch (e) {}
       setGithubStatus('connected');
     } catch (err: any) {
       setGithubStatus('error');
-      console.error(err);
     } finally {
       setIsSyncing(false);
     }
@@ -102,7 +100,7 @@ export default function AdminApp() {
 
   const saveAllToGitHub = async () => {
     if (!githubConfig.token) {
-      showStatus("Token fehlt!", "error");
+      showStatus("Bitte GitHub-Token hinterlegen!", "error");
       setShowSettings(true);
       return;
     }
@@ -137,7 +135,7 @@ export default function AdminApp() {
       } catch(e) {}
       await updateFileOnGitHub(githubConfig, JSON.stringify(eventConfig, null, 2), eventSha, 'event.json');
 
-      showStatus("ERFOLGREICH VERÖFFENTLICHT!", "success");
+      showStatus("LIVE-UPDATE ERFOLGREICH!", "success");
     } catch (err: any) {
       showStatus(`FEHLER: ${err.message}`, "error");
     } finally {
@@ -159,23 +157,22 @@ export default function AdminApp() {
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-slate-900">
-        <div className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl p-12 text-center relative overflow-hidden">
+        <div className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl p-12 text-center">
           <div className="mb-10 flex justify-center">
-            <div className="w-24 h-24 bg-red-600 rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-red-600/40">
+            <div className="w-24 h-24 bg-red-600 rounded-3xl flex items-center justify-center text-white shadow-xl shadow-red-600/30">
               <Lock size={48} />
             </div>
           </div>
-          <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-2">DRK ADMIN</h1>
-          <p className="text-[10px] text-slate-300 font-bold uppercase mb-8 tracking-widest">Version: {BUILD_TIME}</p>
+          <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-8">DRK ADMIN</h1>
           <form onSubmit={(e) => { e.preventDefault(); password === ADMIN_PASSWORD ? setIsLoggedIn(true) : setLoginError(true); }} className="space-y-6">
             <input 
               type="password" autoFocus
               value={password} onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-8 py-6 bg-slate-100 border-4 border-transparent rounded-3xl outline-none focus:border-red-600 text-center font-black text-2xl"
+              className="w-full px-8 py-6 bg-slate-100 border-4 border-transparent rounded-3xl outline-none focus:border-red-600 text-center font-black text-2xl transition-all"
               placeholder="PASSWORT"
             />
-            {loginError && <p className="text-red-600 font-black text-xs uppercase animate-bounce">Passwort ungültig</p>}
-            <button type="submit" className="w-full bg-slate-900 text-white font-black py-6 rounded-3xl uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95">Einloggen</button>
+            {loginError && <p className="text-red-600 font-black text-xs uppercase animate-pulse">Passwort ungültig</p>}
+            <button type="submit" className="w-full bg-slate-900 text-white font-black py-6 rounded-3xl uppercase tracking-widest hover:bg-black transition-all shadow-xl">Einloggen</button>
           </form>
         </div>
       </div>
@@ -185,33 +182,31 @@ export default function AdminApp() {
   return (
     <div className="min-h-screen bg-[#f1f5f9]">
       {showSettings && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/95 backdrop-blur-xl">
-          <div className="bg-white w-full max-w-xl rounded-[3.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md">
+          <div className="bg-white w-full max-w-xl rounded-[3.5rem] shadow-2xl overflow-hidden">
             <div className="p-10 border-b flex justify-between items-center bg-slate-50">
-              <h2 className="font-black text-slate-900 uppercase tracking-tighter text-2xl flex items-center gap-4"><Github size={32} /> GitHub Setup</h2>
+              <h2 className="font-black text-slate-900 uppercase tracking-tighter text-2xl flex items-center gap-4"><Github size={32} /> GitHub Konfiguration</h2>
               <button onClick={() => setShowSettings(false)} className="p-4 hover:bg-slate-200 rounded-full transition-colors"><X size={28}/></button>
             </div>
             <div className="p-12 space-y-8">
-              <div className="bg-yellow-50 p-6 rounded-2xl border border-yellow-100 text-yellow-800 text-[10px] font-bold leading-relaxed uppercase tracking-wider">
-                Der Token wird nur in deinem Browser gespeichert.
+              <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 text-blue-800 text-xs font-bold leading-relaxed uppercase tracking-wider">
+                Der Token ermöglicht das Speichern direkt im GitHub-Repository.
               </div>
               <div className="space-y-4">
-                <input type="text" value={githubConfig.owner} onChange={e => setGithubConfig(p => ({...p, owner: e.target.value}))} className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black outline-none focus:border-red-600" placeholder="GitHub User" />
-                <input type="text" value={githubConfig.repo} onChange={e => setGithubConfig(p => ({...p, repo: e.target.value}))} className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black outline-none focus:border-red-600" placeholder="Repository" />
-                <input type="password" value={githubConfig.token} onChange={e => setGithubConfig(p => ({...p, token: e.target.value}))} className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black outline-none focus:border-red-600" placeholder="GitHub Token" />
+                <input type="text" value={githubConfig.owner} onChange={e => setGithubConfig(p => ({...p, owner: e.target.value}))} className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black outline-none focus:border-red-600" placeholder="GitHub Nutzername" />
+                <input type="text" value={githubConfig.repo} onChange={e => setGithubConfig(p => ({...p, repo: e.target.value}))} className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black outline-none focus:border-red-600" placeholder="Repository-Name" />
+                <input type="password" value={githubConfig.token} onChange={e => setGithubConfig(p => ({...p, token: e.target.value}))} className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black outline-none focus:border-red-600" placeholder="GitHub Token (Personal Access Token)" />
               </div>
-              <button onClick={() => { saveGitHubConfig(githubConfig); setShowSettings(false); loadAllData(); }} className="w-full bg-red-600 text-white py-6 rounded-3xl font-black uppercase tracking-widest shadow-xl hover:bg-red-700">Speichern</button>
+              <button onClick={() => { saveGitHubConfig(githubConfig); setShowSettings(false); loadAllData(); }} className="w-full bg-red-600 text-white py-6 rounded-3xl font-black uppercase tracking-widest shadow-xl hover:bg-red-700">Einstellungen Speichern</button>
             </div>
           </div>
         </div>
       )}
 
-      <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 h-24 flex items-center px-10 justify-between sticky top-0 z-50">
+      <header className="bg-white/95 backdrop-blur-md border-b border-slate-200 h-24 flex items-center px-10 justify-between sticky top-0 z-50">
         <div className="flex items-center gap-6">
-          <div className="w-14 h-14 bg-red-600 rounded-2xl flex items-center justify-center text-white font-black text-sm">DRK</div>
-          <div>
-            <h1 className="font-black text-slate-900 tracking-tighter text-2xl uppercase leading-none">ADMIN DASHBOARD</h1>
-          </div>
+          <div className="w-14 h-14 bg-red-600 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-lg shadow-red-600/20">DRK</div>
+          <h1 className="font-black text-slate-900 tracking-tighter text-2xl uppercase leading-none">ADMIN DASHBOARD</h1>
         </div>
         <div className="flex items-center gap-4">
           <button onClick={() => setShowSettings(true)} className="p-4 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-2xl transition-all relative">
@@ -224,7 +219,7 @@ export default function AdminApp() {
 
       <main className="max-w-7xl mx-auto p-10 space-y-12 pb-20">
         {statusMsg && (
-          <div className={`fixed top-28 left-1/2 -translate-x-1/2 z-[110] px-12 py-6 rounded-full shadow-2xl flex items-center gap-6 border-4 animate-in slide-in-from-top ${statusMsg.type === 'success' ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-red-600 border-red-400 text-white'}`}>
+          <div className={`fixed top-28 left-1/2 -translate-x-1/2 z-[110] px-12 py-6 rounded-full shadow-2xl flex items-center gap-6 border-4 animate-in slide-in-from-top duration-300 ${statusMsg.type === 'success' ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-red-600 border-red-400 text-white'}`}>
              {statusMsg.type === 'success' ? <CheckCircle2 size={32}/> : <AlertCircle size={32}/>}
              <span className="font-black uppercase tracking-widest text-sm">{statusMsg.text}</span>
           </div>
@@ -247,7 +242,7 @@ export default function AdminApp() {
           
           <button onClick={saveAllToGitHub} disabled={isSyncing} className={`rounded-[3.5rem] font-black uppercase tracking-widest text-white shadow-2xl flex flex-col items-center justify-center gap-3 transition-all ${isSyncing ? 'bg-slate-400 scale-95' : 'bg-red-600 hover:bg-red-700 hover:scale-105 active:scale-95 shadow-red-600/20'}`}>
             {isSyncing ? <Loader2 className="animate-spin" size={40}/> : <Cloud size={40}/>}
-            <span className="text-[10px]">{isSyncing ? 'Übertrage...' : 'Live Schalten'}</span>
+            <span className="text-[10px]">{isSyncing ? 'Synchronisiere...' : 'Live Schalten'}</span>
           </button>
         </div>
 
