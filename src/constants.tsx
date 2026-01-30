@@ -1,62 +1,44 @@
+// constants.tsx
 
-import React from 'react';
+export const BASE = import.meta.env.BASE_URL
 
-export const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/l-sayginsoy/drk-display/main/';
+// Dateien liegen in public
+export const LOGO_URL = `${BASE}DRK-Logo_lang_RGB.png`
+export const SPEISEPLAN_URL = `${BASE}Speiseplan.jpg`
 
-// Pfad zum Logo im public-Ordner
-export const LOGO_URL = "/DRK-Logo_lang_RGB.png"; 
-
-export const GITHUB_FILES = {
-  event: `${GITHUB_RAW_BASE}event.txt`,
-  wochenprogramm: `${GITHUB_RAW_BASE}wochenprogramm.txt`,
-  quotes: `${GITHUB_RAW_BASE}quotes.json`
+// Speiseplan Bilder, ohne Umlaute im Dateinamen
+export type MealSlot = {
+  start: string;
+  end: string;
+  file: string;
 };
 
-export const MEAL_SCHEDULE = [
-  // Pfade beginnen jetzt mit "/" für den public-Ordner
-  { start: "07:30", end: "08:30", file: "/Frühstück.jpg" },
-  { start: "11:15", end: "12:30", file: "/Mittagessen.jpg" },
-  { start: "14:15", end: "15:30", file: "/Nachmittagskaffee.jpg" },
-  { start: "17:15", end: "18:30", file: "/Abendessen.jpg" }
+export const MEAL_SCHEDULE: MealSlot[] = [
+  { start: "07:30", end: "08:30", file: `${BASE}fruehstueck.jpg` },
+  { start: "11:15", end: "12:30", file: `${BASE}mittagessen.jpg` },
+  { start: "14:15", end: "15:30", file: `${BASE}nachmittagskaffee.jpg` },
+  { start: "17:15", end: "18:30", file: `${BASE}abendessen.jpg` }
 ];
 
-export const DEFAULT_MEAL_IMAGE = "/Speiseplan.jpg";
+export const DEFAULT_MEAL_IMAGE = `${BASE}speiseplan.jpg`;
 
-// ... Rest deiner Icons und Wetter-Logik bleibt gleich
+/*
+  Optionaler Bereich
+  Falls App.tsx bei dir mapWeatherCode aus constants importiert,
+  bleibt die App sonst stehen.
+  Wenn du es nicht nutzt, kannst du diesen Block löschen.
+*/
 
-// Eindeutige Sortierung nach deutschem Standard (MO-SO)
-export const DAYS_ORDER = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
-
-// Define Icons used in StatsCard as React components
-export const Icons = {
-  Analytics: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <line x1="18" y1="20" x2="18" y2="10" />
-      <line x1="12" y1="20" x2="12" y2="4" />
-      <line x1="6" y1="20" x2="6" y2="14" />
-    </svg>
-  ),
-  TrendUp: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4" {...props}>
-      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-      <polyline points="17 6 23 6 23 12" />
-    </svg>
-  ),
-  TrendDown: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4" {...props}>
-      <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
-      <polyline points="17 18 23 18 23 12" />
-    </svg>
-  ),
-};
-
-export const mapWeatherCode = (code: number): { condition: string; icon: string; theme: string } => {
-  // WMO Weather interpretation codes (WW)
-  if (code === 0) return { condition: 'Sonnig', icon: '☀️', theme: 'sunny' };
-  if (code <= 3) return { condition: 'Bewölkt', icon: '☁️', theme: 'cloudy' };
-  if (code >= 45 && code <= 48) return { condition: 'Neblig', icon: '🌫️', theme: 'foggy' };
-  if (code >= 51 && code <= 67 || code >= 80 && code <= 82) return { condition: 'Regen', icon: '🌧️', theme: 'rainy' };
-  if (code >= 71 && code <= 77 || code === 85 || code === 86) return { condition: 'Schnee', icon: '❄️', theme: 'snowy' };
-  if (code >= 95) return { condition: 'Gewitter', icon: '⛈️', theme: 'stormy' };
-  return { condition: 'Heiter', icon: '⛅', theme: 'cloudy' };
-};
+export function mapWeatherCode(code: number): string {
+  // Minimaler Fallback. Du kannst es später erweitern.
+  if (code === 0) return "Klar";
+  if (code === 1 || code === 2) return "Wolkig";
+  if (code === 3) return "Bedeckt";
+  if (code >= 45 && code <= 48) return "Nebel";
+  if (code >= 51 && code <= 57) return "Niesel";
+  if (code >= 61 && code <= 67) return "Regen";
+  if (code >= 71 && code <= 77) return "Schnee";
+  if (code >= 80 && code <= 82) return "Schauer";
+  if (code >= 95) return "Gewitter";
+  return "Unbekannt";
+}

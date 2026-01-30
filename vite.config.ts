@@ -1,7 +1,8 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
+  base: './',
   plugins: [react()],
   build: {
     outDir: 'dist',
@@ -11,7 +12,5 @@ export default defineConfig({
         admin: './admin/admin.html',
       },
     },
-    sourcemap: false,
-    minify: 'esbuild',
-  }
-});
+  },
+})

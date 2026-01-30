@@ -45,7 +45,8 @@ const App: React.FC = () => {
         const forecast = [];
         const days = ['SO', 'MO', 'DI', 'MI', 'DO', 'FR', 'SA'];
         for (let i = 1; i <= 3; i++) {
-          const d = new Date(); d.setDate(d.getDate() + i);
+          const d = new Date();
+          d.setDate(d.getDate() + i);
           forecast.push({
             day: days[d.getDay()],
             icon: mapWeatherCode(data.daily.weather_code).icon,
@@ -74,8 +75,15 @@ const App: React.FC = () => {
     const tInterval = setInterval(() => setTime(new Date()), 1000);
     const dInterval = setInterval(updateAllData, 300000);
     const wInterval = setInterval(fetchWeather, 900000);
-    return () => { clearInterval(tInterval); clearInterval(dInterval); clearInterval(wInterval); };
+    return () => {
+      clearInterval(tInterval);
+      clearInterval(dInterval);
+      clearInterval(wInterval);
+    };
   }, [updateAllData, fetchWeather]);
+
+  const baseUrl = import.meta.env.BASE_URL;
+  const logoUrl = `${baseUrl}DRK-Logo_lang_RGB.png`;
 
   return (
     <div className="relative h-screen w-screen overflow-hidden text-white font-['Inter'] flex flex-col bg-slate-950">
@@ -145,12 +153,12 @@ const App: React.FC = () => {
 
         <div className="w-[25%] flex justify-end items-center shrink-0">
           {!logoError ? (
-            <img 
-              src="/DRK-Logo_lang_RGB.png" 
-              alt="DRK Logo" 
+            <img
+              src={logoUrl}
+              alt="DRK Logo"
               className="h-[3.8vh] w-auto object-contain"
               onError={() => {
-                console.error('Logo konnte nicht geladen werden');
+                console.error('Logo konnte nicht geladen werden', logoUrl);
                 setLogoError(true);
               }}
             />
