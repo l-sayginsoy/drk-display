@@ -1,4 +1,3 @@
-
 export interface GitHubConfig {
   token: string;
   owner: string;
@@ -7,13 +6,19 @@ export interface GitHubConfig {
   branch: string;
 }
 
-export const getGitHubConfig = (): GitHubConfig | null => {
-  const saved = localStorage.getItem('drk_github_config');
-  return saved ? JSON.parse(saved) : null;
+export const getGitHubConfig = (): GitHubConfig => {
+  // Nutzt VITE_ Variablen von Vercel oder Fallback für lokale Entwicklung
+  return {
+    token: import.meta.env.VITE_GITHUB_TOKEN || '',
+    owner: import.meta.env.VITE_GITHUB_OWNER || '',
+    repo: import.meta.env.VITE_GITHUB_REPO || '',
+    path: 'wochenprogramm.txt',
+    branch: 'main',
+  };
 };
 
-export const saveGitHubConfig = (config: GitHubConfig) => {
-  localStorage.setItem('drk_github_config', JSON.stringify(config));
+export const saveGitHubConfig = (_config: GitHubConfig) => {
+  // In der neuen Struktur nicht mehr für Persistenz nötig, da Vercel die Quelle ist
 };
 
 const getHeaders = (token?: string) => {
@@ -28,7 +33,7 @@ const getHeaders = (token?: string) => {
 };
 
 const utf8_to_b64 = (str: string) => {
-  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_match, p1) => {
     return String.fromCharCode(parseInt(p1, 16));
   }));
 };
@@ -49,12 +54,10 @@ export const fetchFileFromGitHub = async (config: GitHubConfig, specificPath?: s
   
   try {
     const response = await fetch(url, { headers: getHeaders(config.token) });
-    
     if (!response.ok) {
       if (response.status === 404) return { content: '', sha: null };
       throw new Error(`GitHub Status ${response.status}`);
     }
-    
     const data = await response.json();
     const content = b64_to_utf8(data.content);
     return { content, sha: data.sha };
@@ -85,6 +88,5 @@ export const updateFileOnGitHub = async (config: GitHubConfig, content: string, 
     const errorData = await response.json();
     throw new Error(errorData.message || 'Speichern fehlgeschlagen');
   }
-
   return await response.json();
 };
