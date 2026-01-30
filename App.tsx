@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Clock, Calendar, MapPin, Info, Bell } from 'lucide-react';
-import { WeeklyActivity, EventConfig } from './types';
-import { getGitHubConfig, fetchFileFromGitHub } from './githubService';
+import { WeeklyActivity, EventConfig } from './types.ts';
+import { getGitHubConfig, fetchFileFromGitHub } from './githubService.ts';
 
 export default function App() {
   const [activities, setActivities] = useState<WeeklyActivity[]>([]);
@@ -9,7 +10,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [time, setTime] = useState(new Date());
 
-  // Uhrzeit-Update jede Sekunde
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -17,43 +17,47 @@ export default function App() {
 
   useEffect(() => {
     const loadData = async () => {
-      const config = getGitHubConfig();
+      // WICHTIG: Wenn kein LocalStorage da ist (z.B. auf dem Display-TV), 
+      // nutzen wir deine Standard-Daten zum Lesen.
+      let config = getGitHubConfig();
       if (!config) {
-        setLoading(false);
-        return;
+        config = {
+          token: '',
+          owner: 'l-sayginsoy',
+          repo: 'drk-display',
+          path: 'wochenprogramm.txt',
+          branch: 'main'
+        };
       }
 
       try {
-        // Wochenplan laden
         const prog = await fetchFileFromGitHub(config);
         if (prog.content) {
           const todayStr = ['SO', 'MO', 'DI', 'MI', 'DO', 'FR', 'SA'][new Date().getDay()];
           const lines = prog.content.split('\n');
           const todayActivities = lines
             .map(l => l.split('|').map(s => s.trim()))
-            .filter(parts => parts === todayStr)
+            .filter(parts => parts.length >= 5 && parts[1] === todayStr)
             .map((parts, i) => ({
-              id: String(i),
-              day: parts,
-              title: parts,
-              location: parts,
-              time: parts
+              id: `${parts[0]}-${i}`,
+              day: parts[1],
+              title: parts[2],
+              location: parts[3],
+              time: parts[4]
             }));
           setActivities(todayActivities);
         }
 
-        // Event laden
         const evRes = await fetchFileFromGitHub(config, 'event.json');
         if (evRes.content) setEvent(JSON.parse(evRes.content));
       } catch (e) {
-        console.error("Fehler beim Laden der Bewohner-Ansicht", e);
+        console.error("Display Load Error:", e);
       } finally {
         setLoading(false);
       }
     };
 
     loadData();
-    // Alle 5 Minuten aktualisieren
     const interval = setInterval(loadData, 300000);
     return () => clearInterval(interval);
   }, []);
@@ -61,21 +65,22 @@ export default function App() {
   if (loading) {
     return (
       <div className="h-screen bg-slate-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-red-600"></div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-red-600"></div>
+          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Lade Programm...</p>
+        </div>
       </div>
     );
   }
 
-  // Event-Overlay wenn aktiv
   if (event?.active) {
     const now = new Date();
     const isRunning = (!event.start || new Date(event.start) <= now) && (!event.end || new Date(event.end) >= now);
-    
     if (isRunning) {
       return (
         <div className="h-screen w-screen bg-black relative overflow-hidden flex items-center justify-center">
           <img src={event.image} alt="Event" className="absolute inset-0 w-full h-full object-cover opacity-60" />
-          <div className="relative z-10 text-center text-white p-10 bg-black/40 backdrop-blur-md rounded-[4rem] border-4 border-white/20">
+          <div className="relative z-10 text-center text-white p-10 bg-black/40 backdrop-blur-md rounded-[4rem] border-4 border-white/20 animate-in zoom-in duration-700">
             <Bell size={120} className="mx-auto mb-8 text-yellow-400 animate-bounce" />
             <h1 className="text-8xl font-black uppercase tracking-tighter mb-4">Besonderes Event</h1>
             <p className="text-3xl font-bold opacity-80 uppercase tracking-widest">Bitte beachten Sie die Aushänge</p>
@@ -87,7 +92,6 @@ export default function App() {
 
   return (
     <div className="h-screen bg-[#f8fafc] flex flex-col overflow-hidden">
-      {/* Header */}
       <header className="bg-red-600 text-white p-12 flex justify-between items-center shadow-2xl relative z-10">
         <div className="flex items-center gap-10">
           <div className="bg-white p-6 rounded-3xl shadow-lg">
@@ -108,7 +112,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 p-16 grid grid-cols-1 gap-12 overflow-y-auto">
         <section>
           <div className="flex items-center gap-6 mb-12">
@@ -145,7 +148,6 @@ export default function App() {
         </section>
       </main>
 
-      {/* Footer Info */}
       <footer className="bg-slate-900 text-white p-8 text-center text-xl font-bold uppercase tracking-[0.5em] opacity-40">
         Deutsches Rotes Kreuz • Gemeinsam statt einsam
       </footer>

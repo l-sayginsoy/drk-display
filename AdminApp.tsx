@@ -1,16 +1,16 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Lock, ChevronLeft, ChevronRight, Calendar, 
   Image as ImageIcon, Clock, CheckCircle2, AlertCircle, 
   Sparkles, Loader2, Settings, Github, X, Cloud
 } from 'lucide-react';
-import { WeeklyActivity, EventConfig } from './types';
-import { suggestActivity } from './geminiService';
-import { fetchFileFromGitHub, updateFileOnGitHub, getGitHubConfig, saveGitHubConfig, GitHubConfig } from './githubService';
+import { WeeklyActivity, EventConfig } from './types.ts';
+import { suggestActivity } from './geminiService.ts';
+import { fetchFileFromGitHub, updateFileOnGitHub, getGitHubConfig, saveGitHubConfig, GitHubConfig } from './githubService.ts';
 
 const ADMIN_PASSWORD = "drk";
-const LOCATIONS = ['Cafeteria', 'Kleiner Saal', 'Garten', 'Terrasse', 'Wohnbereich', 'Speisesaal', 'Andere...'];
-const DAYS_SHORT = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
+const BUILD_TIME = "30.01.2025 - 01:25"; 
 
 export default function AdminApp() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -63,8 +63,8 @@ export default function AdminApp() {
         lines.forEach(line => {
           const parts = line.split('|').map(s => s.trim());
           if (parts.length >= 5) {
-            const id = `${parts}-${parts}`;
-            newActivities[id] = { id, day: parts, title: parts, location: parts, time: parts };
+            const id = `${parts[0]}-${parts[1]}`;
+            newActivities[id] = { id, day: parts[1], title: parts[2], location: parts[3], time: parts[4] };
           }
         });
         setActivities(newActivities);
@@ -76,7 +76,7 @@ export default function AdminApp() {
       setGithubStatus('connected');
     } catch (err: any) {
       setGithubStatus('error');
-      if (!err.message.includes('404')) showStatus("GitHub Verbindung fehlgeschlagen", "error");
+      console.error(err);
     } finally {
       setIsSyncing(false);
     }
@@ -102,7 +102,7 @@ export default function AdminApp() {
 
   const saveAllToGitHub = async () => {
     if (!githubConfig.token) {
-      showStatus("Bitte Token in den Einstellungen eingeben!", "error");
+      showStatus("Token fehlt!", "error");
       setShowSettings(true);
       return;
     }
@@ -121,7 +121,7 @@ export default function AdminApp() {
         return trimmed && !trimmed.startsWith(weekInfo.weekKey);
       });
 
-      const currentWeekLines = DAYS_SHORT.map(day => {
+      const currentWeekLines = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'].map(day => {
         const id = `${weekInfo.weekKey}-${day}`;
         const act = activities[id] || { title: '', location: '', time: '' };
         return `${weekInfo.weekKey} | ${day} | ${act.title || '-'} | ${act.location || '-'} | ${act.time || '-'}`;
@@ -145,35 +145,28 @@ export default function AdminApp() {
     }
   };
 
-  const updateActivity = (dayIndex: number, field: keyof WeeklyActivity, value: string) => {
-    const id = `${weekInfo.weekKey}-${DAYS_SHORT[dayIndex]}`;
+  const updateActivity = (day: string, field: keyof WeeklyActivity, value: string) => {
+    const id = `${weekInfo.weekKey}-${day}`;
     setActivities(prev => ({
       ...prev,
       [id]: {
-        ...(prev[id] || { id, day: DAYS_SHORT[dayIndex], title: "", location: "", time: "" }),
+        ...(prev[id] || { id, day, title: "", location: "", time: "" }),
         [field]: value
       }
     }));
   };
 
-  const handleAISuggestion = async (dayIndex: number) => {
-    const id = `${weekInfo.weekKey}-${DAYS_SHORT[dayIndex]}`;
-    setLoadingSuggestion(id);
-    const suggestion = await suggestActivity(DAYS_SHORT[dayIndex], activities[id]?.location || 'Cafeteria');
-    updateActivity(dayIndex, 'title', suggestion);
-    setLoadingSuggestion(null);
-  };
-
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-slate-900">
-        <div className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl p-12 text-center animate-in zoom-in duration-500">
+        <div className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl p-12 text-center relative overflow-hidden">
           <div className="mb-10 flex justify-center">
-            <div className="w-24 h-24 bg-red-600 rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-red-600/40 transform -rotate-6">
+            <div className="w-24 h-24 bg-red-600 rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-red-600/40">
               <Lock size={48} />
             </div>
           </div>
           <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-2">DRK ADMIN</h1>
+          <p className="text-[10px] text-slate-300 font-bold uppercase mb-8 tracking-widest">Version: {BUILD_TIME}</p>
           <form onSubmit={(e) => { e.preventDefault(); password === ADMIN_PASSWORD ? setIsLoggedIn(true) : setLoginError(true); }} className="space-y-6">
             <input 
               type="password" autoFocus
@@ -181,7 +174,7 @@ export default function AdminApp() {
               className="w-full px-8 py-6 bg-slate-100 border-4 border-transparent rounded-3xl outline-none focus:border-red-600 text-center font-black text-2xl"
               placeholder="PASSWORT"
             />
-            {loginError && <p className="text-red-600 font-black text-xs uppercase">Falsches Passwort</p>}
+            {loginError && <p className="text-red-600 font-black text-xs uppercase animate-bounce">Passwort ungültig</p>}
             <button type="submit" className="w-full bg-slate-900 text-white font-black py-6 rounded-3xl uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95">Einloggen</button>
           </form>
         </div>
@@ -193,21 +186,21 @@ export default function AdminApp() {
     <div className="min-h-screen bg-[#f1f5f9]">
       {showSettings && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/95 backdrop-blur-xl">
-          <div className="bg-white w-full max-w-xl rounded-[3.5rem] shadow-2xl overflow-hidden">
+          <div className="bg-white w-full max-w-xl rounded-[3.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
             <div className="p-10 border-b flex justify-between items-center bg-slate-50">
               <h2 className="font-black text-slate-900 uppercase tracking-tighter text-2xl flex items-center gap-4"><Github size={32} /> GitHub Setup</h2>
               <button onClick={() => setShowSettings(false)} className="p-4 hover:bg-slate-200 rounded-full transition-colors"><X size={28}/></button>
             </div>
             <div className="p-12 space-y-8">
-              <div className="bg-yellow-50 p-6 rounded-2xl border border-yellow-100 text-yellow-800 text-xs font-bold leading-relaxed">
-                WICHTIG: Der Token wird nur in diesem Browser gespeichert. Er wird nicht im Code hochgeladen!
+              <div className="bg-yellow-50 p-6 rounded-2xl border border-yellow-100 text-yellow-800 text-[10px] font-bold leading-relaxed uppercase tracking-wider">
+                Der Token wird nur in deinem Browser gespeichert.
               </div>
               <div className="space-y-4">
-                <input type="text" value={githubConfig.owner} onChange={e => setGithubConfig(p => ({...p, owner: e.target.value}))} className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black outline-none" placeholder="GitHub Nutzername" />
-                <input type="text" value={githubConfig.repo} onChange={e => setGithubConfig(p => ({...p, repo: e.target.value}))} className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black outline-none" placeholder="Repository Name" />
-                <input type="password" value={githubConfig.token} onChange={e => setGithubConfig(p => ({...p, token: e.target.value}))} className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black outline-none" placeholder="GitHub Token (ghp_...)" />
+                <input type="text" value={githubConfig.owner} onChange={e => setGithubConfig(p => ({...p, owner: e.target.value}))} className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black outline-none focus:border-red-600" placeholder="GitHub User" />
+                <input type="text" value={githubConfig.repo} onChange={e => setGithubConfig(p => ({...p, repo: e.target.value}))} className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black outline-none focus:border-red-600" placeholder="Repository" />
+                <input type="password" value={githubConfig.token} onChange={e => setGithubConfig(p => ({...p, token: e.target.value}))} className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black outline-none focus:border-red-600" placeholder="GitHub Token" />
               </div>
-              <button onClick={() => { saveGitHubConfig(githubConfig); setShowSettings(false); loadAllData(); }} className="w-full bg-red-600 text-white py-6 rounded-3xl font-black uppercase tracking-widest shadow-xl">Speichern</button>
+              <button onClick={() => { saveGitHubConfig(githubConfig); setShowSettings(false); loadAllData(); }} className="w-full bg-red-600 text-white py-6 rounded-3xl font-black uppercase tracking-widest shadow-xl hover:bg-red-700">Speichern</button>
             </div>
           </div>
         </div>
@@ -218,22 +211,18 @@ export default function AdminApp() {
           <div className="w-14 h-14 bg-red-600 rounded-2xl flex items-center justify-center text-white font-black text-sm">DRK</div>
           <div>
             <h1 className="font-black text-slate-900 tracking-tighter text-2xl uppercase leading-none">ADMIN DASHBOARD</h1>
-            <div className="flex items-center gap-2 mt-1">
-               <div className={`w-2 h-2 rounded-full ${githubStatus === 'connected' ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
-               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{githubStatus === 'connected' ? 'Verbunden' : 'Getrennt'}</p>
-            </div>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <button onClick={() => setShowSettings(true)} className="p-4 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-2xl transition-all relative">
             <Settings size={28}/>
-            {!githubConfig.token && <div className="absolute top-3 right-3 w-3 h-3 bg-red-600 rounded-full border-2 border-white animate-pulse"></div>}
+            {!githubConfig.token && <div className="absolute top-3 right-3 w-3 h-3 bg-red-600 rounded-full border-2 border-white animate-bounce"></div>}
           </button>
-          <button onClick={() => setIsLoggedIn(false)} className="px-6 py-3 bg-slate-900 text-white font-black text-[10px] uppercase rounded-xl hover:bg-black transition-all">Logout</button>
+          <button onClick={() => setIsLoggedIn(false)} className="px-6 py-3 bg-slate-900 text-white font-black text-[10px] uppercase rounded-xl hover:bg-black transition-all">Abmelden</button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-10 space-y-12">
+      <main className="max-w-7xl mx-auto p-10 space-y-12 pb-20">
         {statusMsg && (
           <div className={`fixed top-28 left-1/2 -translate-x-1/2 z-[110] px-12 py-6 rounded-full shadow-2xl flex items-center gap-6 border-4 animate-in slide-in-from-top ${statusMsg.type === 'success' ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-red-600 border-red-400 text-white'}`}>
              {statusMsg.type === 'success' ? <CheckCircle2 size={32}/> : <AlertCircle size={32}/>}
@@ -256,35 +245,39 @@ export default function AdminApp() {
             </div>
           </div>
           
-          <button onClick={saveAllToGitHub} disabled={isSyncing} className={`rounded-[3.5rem] font-black uppercase tracking-widest text-white shadow-2xl flex flex-col items-center justify-center gap-3 transition-all ${isSyncing ? 'bg-slate-400' : 'bg-red-600 hover:bg-red-700 active:scale-95 shadow-red-600/20'}`}>
+          <button onClick={saveAllToGitHub} disabled={isSyncing} className={`rounded-[3.5rem] font-black uppercase tracking-widest text-white shadow-2xl flex flex-col items-center justify-center gap-3 transition-all ${isSyncing ? 'bg-slate-400 scale-95' : 'bg-red-600 hover:bg-red-700 hover:scale-105 active:scale-95 shadow-red-600/20'}`}>
             {isSyncing ? <Loader2 className="animate-spin" size={40}/> : <Cloud size={40}/>}
-            <span className="text-xs">Live Schalten</span>
+            <span className="text-[10px]">{isSyncing ? 'Übertrage...' : 'Live Schalten'}</span>
           </button>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-12">
           <div className="xl:col-span-2 space-y-6">
-            <div className="bg-white rounded-[3.5rem] shadow-xl p-6 space-y-4 border border-slate-100">
-              {DAYS_SHORT.map((day, idx) => {
+            <div className="bg-white rounded-[3.5rem] shadow-xl p-8 space-y-4 border border-slate-100">
+              {['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'].map((day) => {
                 const id = `${weekInfo.weekKey}-${day}`;
                 const data = activities[id] || { title: "", location: "", time: "" };
                 return (
-                  <div key={day} className="group p-6 rounded-[2rem] hover:bg-slate-50 flex items-center gap-6 transition-all">
+                  <div key={day} className="group p-6 rounded-[2.5rem] hover:bg-slate-50 flex items-center gap-8 transition-all border-2 border-transparent hover:border-slate-100">
                     <span className="w-16 text-3xl font-black text-slate-900 group-hover:text-red-600 shrink-0">{day}</span>
                     <div className="flex-1 relative">
-                      <input type="text" value={data.title} onChange={e => updateActivity(idx, 'title', e.target.value)} placeholder="Was findet statt?" className="w-full bg-white border-2 border-slate-100 rounded-[1.5rem] px-8 py-5 font-bold outline-none focus:border-red-600 pr-16 shadow-sm" />
-                      <button onClick={() => handleAISuggestion(idx)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-600 p-2 transition-colors">
+                      <input type="text" value={data.title} onChange={e => updateActivity(day, 'title', e.target.value)} placeholder="Aktivität eingeben..." className="w-full bg-white border-2 border-slate-100 rounded-[1.5rem] px-8 py-5 font-bold outline-none focus:border-red-600 pr-16 shadow-sm transition-all" />
+                      <button 
+                        onClick={async () => {
+                           setLoadingSuggestion(id);
+                           const sug = await suggestActivity(day, data.location || 'Cafeteria');
+                           updateActivity(day, 'title', sug);
+                           setLoadingSuggestion(null);
+                        }} 
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-600 p-2 transition-colors">
                         {loadingSuggestion === id ? <Loader2 className="animate-spin" size={24}/> : <Sparkles size={24}/>}
                       </button>
                     </div>
-                    <select value={data.location} onChange={e => updateActivity(idx, 'location', e.target.value)} className="w-48 bg-white border-2 border-slate-100 rounded-[1.5rem] px-6 py-5 font-bold outline-none shadow-sm appearance-none cursor-pointer">
+                    <select value={data.location} onChange={e => updateActivity(day, 'location', e.target.value)} className="w-48 bg-white border-2 border-slate-100 rounded-[1.5rem] px-6 py-5 font-bold outline-none shadow-sm appearance-none cursor-pointer focus:border-red-600">
                       <option value="">Ort...</option>
-                      {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+                      {['Cafeteria', 'Garten', 'Saal', 'Wohnbereich'].map(l => <option key={l} value={l}>{l}</option>)}
                     </select>
-                    <div className="w-36 shrink-0 bg-white px-6 py-5 rounded-[1.5rem] border-2 border-slate-100 shadow-sm flex items-center gap-2">
-                      <Clock size={18} className="text-slate-300"/>
-                      <input type="time" value={data.time} onChange={e => updateActivity(idx, 'time', e.target.value)} className="bg-transparent border-none outline-none font-black text-lg w-full" />
-                    </div>
+                    <input type="time" value={data.time} onChange={e => updateActivity(day, 'time', e.target.value)} className="w-36 bg-white border-2 border-slate-100 rounded-[1.5rem] px-6 py-5 font-black text-lg shadow-sm focus:border-red-600 outline-none" />
                   </div>
                 );
               })}
@@ -293,28 +286,31 @@ export default function AdminApp() {
 
           <section className="bg-slate-900 text-white rounded-[3.5rem] p-10 shadow-2xl space-y-8 border border-white/5 h-fit sticky top-32">
              <div className="flex items-center gap-6">
-               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${eventConfig.active ? 'bg-emerald-500 shadow-xl shadow-emerald-500/30' : 'bg-white/10'}`}><ImageIcon size={28}/></div>
+               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${eventConfig.active ? 'bg-emerald-500 shadow-xl shadow-emerald-500/30 animate-pulse' : 'bg-white/10'}`}><ImageIcon size={28}/></div>
                <div>
                  <h4 className="font-black uppercase tracking-tighter text-xl leading-none">Event-Modus</h4>
-                 <p className="text-[9px] text-white/40 uppercase tracking-widest mt-2">Status: {eventConfig.active ? 'AKTIV' : 'AUS'}</p>
                </div>
              </div>
+             
              <div className="grid grid-cols-2 gap-2 bg-white/5 p-1 rounded-2xl border border-white/10">
                <button onClick={() => setEventConfig(p => ({...p, active: true}))} className={`py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${eventConfig.active ? 'bg-white text-slate-900 shadow-lg' : 'text-white/30 hover:text-white/60'}`}>An</button>
                <button onClick={() => setEventConfig(p => ({...p, active: false}))} className={`py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${!eventConfig.active ? 'bg-red-600 text-white shadow-lg' : 'text-white/30 hover:text-white/60'}`}>Aus</button>
              </div>
-             <div className="space-y-4">
+
+             <div className="space-y-4 pt-4">
                <div className="space-y-2">
-                 <label className="text-[9px] font-black text-white/30 uppercase ml-1">Bilddatei</label>
-                 <input type="text" value={eventConfig.image} onChange={e => setEventConfig(p => ({...p, image: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 font-bold text-sm outline-none focus:border-white/30" placeholder="z.B. fest.jpg" />
+                 <label className="text-[9px] font-black text-white/30 uppercase ml-1">Event-Bilddatei</label>
+                 <input type="text" value={eventConfig.image} onChange={e => setEventConfig(p => ({...p, image: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 font-bold text-sm outline-none focus:border-white/30" placeholder="fest.jpg" />
                </div>
-               <div className="space-y-2">
-                 <label className="text-[9px] font-black text-white/30 uppercase ml-1">Beginn</label>
-                 <input type="datetime-local" value={eventConfig.start} onChange={e => setEventConfig(p => ({...p, start: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs font-black outline-none focus:border-white/30" />
-               </div>
-               <div className="space-y-2">
-                 <label className="text-[9px] font-black text-white/30 uppercase ml-1">Ende</label>
-                 <input type="datetime-local" value={eventConfig.end} onChange={e => setEventConfig(p => ({...p, end: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs font-black outline-none focus:border-white/30" />
+               <div className="grid grid-cols-1 gap-4">
+                 <div className="space-y-2">
+                   <label className="text-[9px] font-black text-white/30 uppercase ml-1">Startdatum</label>
+                   <input type="datetime-local" value={eventConfig.start} onChange={e => setEventConfig(p => ({...p, start: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs font-black outline-none" />
+                 </div>
+                 <div className="space-y-2">
+                   <label className="text-[9px] font-black text-white/30 uppercase ml-1">Enddatum</label>
+                   <input type="datetime-local" value={eventConfig.end} onChange={e => setEventConfig(p => ({...p, end: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs font-black outline-none" />
+                 </div>
                </div>
              </div>
           </section>
