@@ -3,6 +3,9 @@ import React from 'react';
 
 export const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/l-sayginsoy/drk-display/main/';
 
+// Pfad zum Logo im public-Ordner
+export const LOGO_URL = "/DRK-Logo_lang_RGB.png"; 
+
 export const GITHUB_FILES = {
   event: `${GITHUB_RAW_BASE}event.txt`,
   wochenprogramm: `${GITHUB_RAW_BASE}wochenprogramm.txt`,
@@ -10,13 +13,16 @@ export const GITHUB_FILES = {
 };
 
 export const MEAL_SCHEDULE = [
-  { start: "00:00", end: "10:00", file: "Frühstück.jpg" },
-  { start: "10:00", end: "14:00", file: "Mittagessen.jpg" },
-  { start: "14:00", end: "16:30", file: "Nachmittagskaffee.jpg" },
-  { start: "16:30", end: "23:59", file: "Abendessen.jpg" }
+  // Pfade beginnen jetzt mit "/" für den public-Ordner
+  { start: "07:30", end: "08:30", file: "/Frühstück.jpg" },
+  { start: "11:15", end: "12:30", file: "/Mittagessen.jpg" },
+  { start: "14:15", end: "15:30", file: "/Nachmittagskaffee.jpg" },
+  { start: "17:15", end: "18:30", file: "/Abendessen.jpg" }
 ];
 
-export const DEFAULT_MEAL_IMAGE = "Speiseplan.jpg";
+export const DEFAULT_MEAL_IMAGE = "/Speiseplan.jpg";
+
+// ... Rest deiner Icons und Wetter-Logik bleibt gleich
 
 // Eindeutige Sortierung nach deutschem Standard (MO-SO)
 export const DAYS_ORDER = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
