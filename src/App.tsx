@@ -4,7 +4,7 @@ import WeeklyProgram from './components/WeeklyProgram';
 import MealDisplay from './components/MealDisplay';
 import { fetchEventOverride, fetchWeeklyProgram, fetchQuote } from './dataService';
 import { WeeklyProgram as IWeeklyProgram, EventOverride, WeatherData } from './types';
-import { mapWeatherCode, GITHUB_RAW_BASE } from './constants';
+import { mapWeatherCode } from './constants';
 
 const App: React.FC = () => {
   const [time, setTime] = useState(new Date());
@@ -152,9 +152,7 @@ const App: React.FC = () => {
               onError={() => setLogoError(true)}
             />
           ) : (
-            <div className="flex flex-col items-end">
-               <span className="text-[2.8vh] font-black text-red-600 uppercase tracking-tighter">DRK MELM</span>
-            </div>
+            <span className="text-[2.8vh] font-black text-red-600 uppercase tracking-tighter">DRK MELM</span>
           )}
         </div>
       </footer>
