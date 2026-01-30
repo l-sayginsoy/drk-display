@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import WeatherBackground from './components/WeatherBackground';
 import WeeklyProgram from './components/WeeklyProgram';
 import MealDisplay from './components/MealDisplay';
 import { fetchEventOverride, fetchWeeklyProgram, fetchQuote } from './dataService';
 import { WeeklyProgram as IWeeklyProgram, EventOverride, WeatherData } from './types';
-import { mapWeatherCode, GITHUB_RAW_BASE } from './constants';
+import { mapWeatherCode, GITHUB_RAW_BASE, LOGO_URL } from './constants';
 
 const App: React.FC = () => {
   const [time, setTime] = useState(new Date());
@@ -49,9 +48,9 @@ const App: React.FC = () => {
           const d = new Date(); d.setDate(d.getDate() + i);
           forecast.push({
             day: days[d.getDay()],
-            icon: mapWeatherCode(data.daily.weather_code[i]).icon,
-            max: Math.round(data.daily.temperature_2m_max[i]),
-            min: Math.round(data.daily.temperature_2m_min[i])
+            icon: mapWeatherCode(data.daily.weather_code).icon,
+            max: Math.round(data.daily.temperature_2m_max),
+            min: Math.round(data.daily.temperature_2m_min)
           });
         }
         setWeather({
@@ -59,8 +58,8 @@ const App: React.FC = () => {
           code: data.current.weather_code,
           isDay: data.current.is_day === 1,
           condition,
-          max: Math.round(data.daily.temperature_2m_max[0]),
-          min: Math.round(data.daily.temperature_2m_min[0]),
+          max: Math.round(data.daily.temperature_2m_max),
+          min: Math.round(data.daily.temperature_2m_min),
           forecast
         });
       }
@@ -75,15 +74,22 @@ const App: React.FC = () => {
     const tInterval = setInterval(() => setTime(new Date()), 1000);
     const dInterval = setInterval(updateAllData, 300000);
     const wInterval = setInterval(fetchWeather, 900000);
-    return () => { clearInterval(tInterval); clearInterval(dInterval); clearInterval(wInterval); };
+    return () => { 
+      clearInterval(tInterval); 
+      clearInterval(dInterval); 
+      clearInterval(wInterval); 
+    };
   }, [updateAllData, fetchWeather]);
+
+  // Hilfsfunktion für absolute Pfade aus dem public-Ordner
+  const getAssetUrl = (path: string) => {
+    return new URL(path, window.location.origin).href;
+  };
 
   return (
     <div className="relative h-screen w-screen overflow-hidden text-white font-['Inter'] flex flex-col bg-slate-950">
-      {/* Environmental Engine Background */}
       <WeatherBackground code={weather?.code} isDay={currentIsDay} />
 
-      {/* Header - Bleibt bei 15vh für den Abstand nach oben */}
       <header className="h-[15vh] flex items-end px-[4vw] pb-[3vh] shrink-0 z-20">
         <div className="flex items-center gap-6 drop-shadow-2xl">
           <span className="text-[8vh] font-[900] tracking-tighter tabular-nums leading-none">
@@ -101,21 +107,16 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content Area */}
       <main className="flex-1 flex px-[4vw] py-[2vh] gap-[3vw] min-h-0 z-10">
-        {/* MealDisplay auf flex-[2.2] angepasst (Mittelweg zwischen 1.6 und 3) */}
         <div className="flex-[2.2] h-full overflow-hidden">
           <MealDisplay override={override} />
         </div>
-        {/* WeeklyProgram flex-[1] belassen */}
         <div className="flex-[1] h-full overflow-hidden">
           <WeeklyProgram programs={programs} />
         </div>
       </main>
 
-      {/* Footer (Absolute White Bar) */}
       <footer className="h-[10vh] bg-white text-slate-900 flex items-center justify-between px-[4vw] shrink-0 z-[100] shadow-[0_-15px_40px_rgba(0,0,0,0.3)] border-t border-slate-100">
-        {/* Weather Block */}
         <div className="w-[30%] flex items-center shrink-0">
           {weather ? (
             <div className="flex items-center gap-8">
@@ -145,28 +146,33 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* Quote Block */}
         <div className="flex-1 px-10 text-center flex items-center justify-center">
           <p className="text-[2.2vh] font-bold italic text-slate-500 leading-tight line-clamp-2 max-w-[45vw]">
             "{quote}"
           </p>
         </div>
 
-{/* Logo Block */}
-<div className="w-[25%] flex justify-end items-center shrink-0">
-  {!logoError ? (
-   <img 
-  src="/DRK-Logo_lang_RGB.png" 
-  alt="DRK Logo" 
-  className="h-[3.8vh] w-auto object-contain"
-  onError={() => setLogoError(true)}
-/>
-  ) : (
-    <div className="flex flex-col items-end">
-       <span className="text-[2.8vh] font-black text-red-600 uppercase tracking-tighter">DRK MELM</span>
-       <span className="text-[0.8vh] text-slate-400">Bild nicht gefunden</span>
+        <div className="w-[25%] flex justify-end items-center shrink-0">
+          {!logoError ? (
+            <img 
+              src={getAssetUrl('/DRK-Logo_lang_RGB.png')} 
+              alt="DRK Logo" 
+              className="h-[3.8vh] w-auto object-contain"
+              onError={() => {
+                console.error("Logo nicht gefunden unter:", getAssetUrl('/DRK-Logo_lang_RGB.png'));
+                setLogoError(true);
+              }}
+            />
+          ) : (
+            <div className="flex flex-col items-end">
+               <span className="text-[2.8vh] font-black text-red-600 uppercase tracking-tighter leading-none">DRK MELM</span>
+               <span className="text-[0.9vh] font-bold text-slate-400 uppercase tracking-widest mt-1">Ludwigshafen</span>
+            </div>
+          )}
+        </div>
+      </footer>
     </div>
-  )}
-</div>
+  );
+};
 
 export default App;
