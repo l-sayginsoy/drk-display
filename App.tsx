@@ -13,9 +13,9 @@ export default function App() {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // GitHub-Config - NUR LESEN, kein Token nötig für öffentliche Repos
+  // GitHub-Config - NUR LESEN, kein Token nötig
   const githubConfig: GitHubConfig = {
-    token: '', // Leer für öffentliches Lesen
+    token: '', 
     owner: 'l-sayginsoy',
     repo: 'drk-display',
     path: 'wochenprogramm.txt',
@@ -31,7 +31,7 @@ export default function App() {
   // Daten laden
   useEffect(() => {
     loadDisplayData();
-    const interval = setInterval(loadDisplayData, 30000); // Alle 30 Sekunden neu laden
+    const interval = setInterval(loadDisplayData, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -39,7 +39,6 @@ export default function App() {
     try {
       setIsLoading(true);
       
-      // Wochenprogramm laden
       const progRes = await fetchFileFromGitHub(githubConfig);
       if (progRes.content) {
         const currentWeekKey = getCurrentWeekKey();
@@ -61,7 +60,6 @@ export default function App() {
         setActivities(weekActivities);
       }
 
-      // Event-Config laden
       try {
         const eventRes = await fetchFileFromGitHub(githubConfig, 'event.json');
         if (eventRes.content) {
@@ -125,7 +123,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-slate-100">
-      {/* Event-Anzeige */}
       {isEventActive() && (
         <div className="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center p-8">
           <div className="text-center text-white max-w-4xl">
@@ -141,9 +138,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Hauptanzeige */}
       <div className="container mx-auto p-8 max-w-6xl">
-        {/* Header */}
         <header className="text-center mb-16">
           <div className="flex items-center justify-center gap-6 mb-8">
             <div className="w-20 h-20 bg-red-600 rounded-2xl flex items-center justify-center shadow-xl">
@@ -155,7 +150,6 @@ export default function App() {
             </div>
           </div>
           
-          {/* Zeit und Datum */}
           <div className="bg-white/80 backdrop-blur rounded-3xl p-8 shadow-lg border">
             <div className="text-5xl font-black text-slate-900 mb-4">
               {currentTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
@@ -171,7 +165,6 @@ export default function App() {
           </div>
         </header>
 
-        {/* Heute */}
         <section className="mb-16">
           <h2 className="text-4xl font-black text-slate-900 mb-8 flex items-center gap-4">
             <Calendar size={48} className="text-red-600" />
@@ -207,7 +200,6 @@ export default function App() {
           )}
         </section>
 
-        {/* Wochenübersicht */}
         <section>
           <h2 className="text-4xl font-black text-slate-900 mb-8">Diese Woche</h2>
           <div className="grid gap-4">
