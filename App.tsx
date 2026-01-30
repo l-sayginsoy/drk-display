@@ -9,8 +9,9 @@ export default function App() {
   const [activities, setActivities] = useState<Record<string, WeeklyActivity>>({});
   const [isLoading, setIsLoading] = useState(true);
   
+  // Nutzt die gleiche Konfiguration wie dein Admin-Panel
   const githubConfig: GitHubConfig = getGitHubConfig() || {
-    token: import.meta.env.VITE_GITHUB_TOKEN || '',
+    token: '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',
     owner: 'l-sayginsoy', 
     repo: 'drk-display', 
     path: 'wochenprogramm.txt', 
@@ -32,12 +33,13 @@ export default function App() {
         });
         setActivities(newActivities);
       }
-    } catch (e) { console.error(e); } finally { setIsLoading(false); }
+    } catch (e) { console.error("Ladefehler Display"); } 
+    finally { setIsLoading(false); }
   };
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 300000);
+    const interval = setInterval(loadData, 300000); // Alle 5 Min aktualisieren
     return () => clearInterval(interval);
   }, []);
 
@@ -52,36 +54,41 @@ export default function App() {
     return { weekKey: `${year}-W${weekNumber.toString().padStart(2, '0')}` };
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <Loader2 className="animate-spin text-red-600" size={64} />
-      </div>
-    );
-  }
+  if (isLoading) return (
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <Loader2 className="animate-spin text-red-600" size={80} />
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-white font-sans text-slate-900">
-      <header className="bg-red-600 text-white p-10 shadow-2xl flex justify-between items-center">
+    <div className="min-h-screen bg-white font-sans text-slate-900 overflow-hidden">
+      <header className="bg-red-600 text-white p-12 shadow-2xl flex justify-between items-center">
         <div className="flex items-center gap-10">
-          <div className="bg-white text-red-600 font-black text-6xl p-6 rounded-3xl">DRK</div>
-          <h1 className="text-8xl font-black tracking-tighter uppercase leading-none">Wochenprogramm</h1>
+          <div className="bg-white text-red-600 font-black text-6xl p-6 rounded-[2rem] shadow-lg">DRK</div>
+          <h1 className="text-9xl font-black tracking-tighter uppercase leading-none">Programm</h1>
         </div>
+        <div className="text-4xl font-black opacity-40 italic">{weekInfo.weekKey}</div>
       </header>
 
-      <main className="p-10 space-y-6">
+      <main className="p-10 space-y-8">
         {DAYS_SHORT.map((day) => {
           const data = activities[`${weekInfo.weekKey}-${day}`];
           return (
-            <div key={day} className="flex items-center bg-slate-50 p-10 rounded-[4rem] border-4 border-slate-100 shadow-xl">
-              <div className="w-48 text-8xl font-black text-red-600">{day}</div>
-              <div className="flex-1 px-12 border-l-8 border-slate-200">
-                <h2 className="text-7xl font-bold text-slate-800">{data?.title || '---'}</h2>
-                <p className="text-4xl font-bold text-slate-400 uppercase mt-2">{data?.location || ''}</p>
+            <div key={day} className="flex items-center bg-slate-50 p-12 rounded-[5rem] border-4 border-slate-100 shadow-xl transition-all">
+              <div className="w-56 text-9xl font-black text-red-600">{day}</div>
+              <div className="flex-1 px-16 border-l-8 border-slate-200">
+                <h2 className="text-8xl font-bold text-slate-800 leading-tight">
+                  {data?.title && data.title !== '-' ? data.title : 'Kein Programm'}
+                </h2>
+                <p className="text-5xl font-bold text-slate-400 uppercase mt-4">
+                  {data?.location && data.location !== '-' ? data.location : ''}
+                </p>
               </div>
-              <div className="bg-white px-14 py-10 rounded-[3rem] border-8 border-red-600 shadow-2xl flex items-center gap-6">
-                <Clock size={60} className="text-red-600" />
-                <span className="text-7xl font-black tracking-tighter">{data?.time || '--:--'}</span>
+              <div className="bg-white px-16 py-12 rounded-[4rem] border-8 border-red-600 shadow-2xl flex items-center gap-8">
+                <Clock size={80} className="text-red-600" />
+                <span className="text-8xl font-black tracking-tighter">
+                  {data?.time && data.time !== '-' ? data.time : '--:--'}
+                </span>
               </div>
             </div>
           );
