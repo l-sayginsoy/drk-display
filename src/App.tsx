@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import WeatherBackground from './components/WeatherBackground';
-import WeeklyProgram from './components/WeeklyProgram';
-import MealDisplay from './components/MealDisplay';
+import WeatherBackground from './WeatherBackground';
+import WeeklyProgram from './WeeklyProgram';
+import MealDisplay from './MealDisplay';
 import { fetchEventOverride, fetchWeeklyProgram, fetchQuote } from './dataService';
 import { WeeklyProgram as IWeeklyProgram, EventOverride, WeatherData } from './types';
 import { mapWeatherCode } from './constants';
@@ -120,7 +120,7 @@ const App: React.FC = () => {
               </div>
               <div className="h-[4.5vh] w-px bg-slate-200"></div>
               <div className="flex gap-5">
-                {weather.forecast.map((f, i) => (
+                {weather.forecast.map((f: any, i: number) => (
                   <div key={i} className="flex flex-col items-center">
                     <span className="text-[1vh] font-black text-slate-400 uppercase leading-none mb-1">{f.day}</span>
                     <span className="text-[2.2vh] leading-none mb-1">{f.icon}</span>
@@ -149,7 +149,10 @@ const App: React.FC = () => {
               src="/DRK-Logo_lang_RGB.png" 
               alt="DRK Logo" 
               className="h-[3.8vh] w-auto object-contain"
-              onError={() => setLogoError(true)}
+              onError={() => {
+                console.error('Logo konnte nicht geladen werden');
+                setLogoError(true);
+              }}
             />
           ) : (
             <span className="text-[2.8vh] font-black text-red-600 uppercase tracking-tighter">DRK MELM</span>
