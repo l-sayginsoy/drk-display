@@ -155,16 +155,12 @@ const App: React.FC = () => {
 {/* Logo Block */}
 <div className="w-[25%] flex justify-end items-center shrink-0">
   {!logoError ? (
-    <img 
-      /* GEÄNDERT: Pfad zeigt jetzt auf den lokalen public Ordner */
-      src="/DRK-Logo_lang_RGB.png" 
-      alt="DRK Logo" 
-      className="h-[3.8vh] w-auto object-contain"
-      onError={() => {
-        console.error("Logo konnte nicht geladen werden. Prüfe ob die Datei im public Ordner liegt.");
-        setLogoError(true);
-      }}
-    />
+   <img 
+  src="/DRK-Logo_lang_RGB.png" 
+  alt="DRK Logo" 
+  className="h-[3.8vh] w-auto object-contain"
+  onError={() => setLogoError(true)}
+/>
   ) : (
     <div className="flex flex-col items-end">
        <span className="text-[2.8vh] font-black text-red-600 uppercase tracking-tighter">DRK MELM</span>
