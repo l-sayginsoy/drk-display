@@ -4,7 +4,7 @@ import WeeklyProgram from './components/WeeklyProgram';
 import MealDisplay from './components/MealDisplay';
 import { fetchEventOverride, fetchWeeklyProgram, fetchQuote } from './dataService';
 import { WeeklyProgram as IWeeklyProgram, EventOverride, WeatherData } from './types';
-import { mapWeatherCode, GITHUB_RAW_BASE, LOGO_URL } from './constants';
+import { mapWeatherCode, GITHUB_RAW_BASE } from './constants';
 
 const App: React.FC = () => {
   const [time, setTime] = useState(new Date());
@@ -74,17 +74,8 @@ const App: React.FC = () => {
     const tInterval = setInterval(() => setTime(new Date()), 1000);
     const dInterval = setInterval(updateAllData, 300000);
     const wInterval = setInterval(fetchWeather, 900000);
-    return () => { 
-      clearInterval(tInterval); 
-      clearInterval(dInterval); 
-      clearInterval(wInterval); 
-    };
+    return () => { clearInterval(tInterval); clearInterval(dInterval); clearInterval(wInterval); };
   }, [updateAllData, fetchWeather]);
-
-  // Hilfsfunktion für absolute Pfade aus dem public-Ordner
-  const getAssetUrl = (path: string) => {
-    return new URL(path, window.location.origin).href;
-  };
 
   return (
     <div className="relative h-screen w-screen overflow-hidden text-white font-['Inter'] flex flex-col bg-slate-950">
@@ -155,18 +146,14 @@ const App: React.FC = () => {
         <div className="w-[25%] flex justify-end items-center shrink-0">
           {!logoError ? (
             <img 
-              src={getAssetUrl('/DRK-Logo_lang_RGB.png')} 
+              src="/DRK-Logo_lang_RGB.png" 
               alt="DRK Logo" 
               className="h-[3.8vh] w-auto object-contain"
-              onError={() => {
-                console.error("Logo nicht gefunden unter:", getAssetUrl('/DRK-Logo_lang_RGB.png'));
-                setLogoError(true);
-              }}
+              onError={() => setLogoError(true)}
             />
           ) : (
             <div className="flex flex-col items-end">
-               <span className="text-[2.8vh] font-black text-red-600 uppercase tracking-tighter leading-none">DRK MELM</span>
-               <span className="text-[0.9vh] font-bold text-slate-400 uppercase tracking-widest mt-1">Ludwigshafen</span>
+               <span className="text-[2.8vh] font-black text-red-600 uppercase tracking-tighter">DRK MELM</span>
             </div>
           )}
         </div>
