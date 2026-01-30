@@ -52,7 +52,13 @@ export default function App() {
     return { weekKey: `${year}-W${weekNumber.toString().padStart(2, '0')}` };
   }, []);
 
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-red-600" size={64} /></div>;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <Loader2 className="animate-spin text-red-600" size={64} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900">
