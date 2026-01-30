@@ -47,7 +47,9 @@ export default function App() {
     const dayNr = (d.getDay() + 6) % 7;
     target.setDate(target.getDate() - dayNr + 3);
     const firstThursday = target.valueOf();
-    return { weekKey: `${new Date(firstThursday).getFullYear()}-W${(1 + Math.ceil((firstThursday - new Date(new Date(firstThursday).getFullYear(), 0, 4).valueOf()) / 604800000)).toString().padStart(2, '0')}` };
+    const year = new Date(firstThursday).getFullYear();
+    const weekNumber = 1 + Math.ceil((firstThursday - new Date(year, 0, 4).valueOf()) / 604800000);
+    return { weekKey: `${year}-W${weekNumber.toString().padStart(2, '0')}` };
   }, []);
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-red-600" size={64} /></div>;
