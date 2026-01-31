@@ -1,44 +1,41 @@
-// constants.tsx
+export const BASE = import.meta.env.BASE_URL;
 
-export const BASE = import.meta.env.BASE_URL
+export const LOGO_URL = `${BASE}DRK-Logo_lang_RGB.png`;
+export const SPEISEPLAN_URL = `${BASE}Speiseplan.jpg`;
 
-// Dateien liegen in public
-export const LOGO_URL = `${BASE}DRK-Logo_lang_RGB.png`
-export const SPEISEPLAN_URL = `${BASE}Speiseplan.jpg`
+export const DAYS_ORDER = ["MO", "DI", "MI", "DO", "FR", "SA", "SO"] as const;
 
-// Speiseplan Bilder, ohne Umlaute im Dateinamen
-export type MealSlot = {
-  start: string;
-  end: string;
-  file: string;
-};
+export const GITHUB_FILES = {
+  event: "event.json",
+  wochenprogramm: "wochenprogramm.txt",
+  quotes: "quotes.json",
+  metadata: "metadata.json"
+} as const;
 
-export const MEAL_SCHEDULE: MealSlot[] = [
-  { start: "07:30", end: "08:30", file: `${BASE}fruehstueck.jpg` },
-  { start: "11:15", end: "12:30", file: `${BASE}mittagessen.jpg` },
-  { start: "14:15", end: "15:30", file: `${BASE}nachmittagskaffee.jpg` },
-  { start: "17:15", end: "18:30", file: `${BASE}abendessen.jpg` }
-];
+export function mapWeatherCode(code: number): { icon: string; condition: string } {
+  const mappings: Record<number, { icon: string; condition: string }> = {
+    0: { icon: "☀️", condition: "Klar" },
+    1: { icon: "🌤️", condition: "Überwiegend klar" },
+    2: { icon: "⛅", condition: "Teilweise bewölkt" },
+    3: { icon: "☁️", condition: "Bewölkt" },
+    45: { icon: "🌫️", condition: "Nebel" },
+    48: { icon: "🌫️", condition: "Nebel" },
+    51: { icon: "🌦️", condition: "Nieselregen" },
+    53: { icon: "🌦️", condition: "Nieselregen" },
+    55: { icon: "🌦️", condition: "Nieselregen" },
+    61: { icon: "🌧️", condition: "Regen" },
+    63: { icon: "🌧️", condition: "Regen" },
+    65: { icon: "🌧️", condition: "Starker Regen" },
+    71: { icon: "🌨️", condition: "Schnee" },
+    73: { icon: "🌨️", condition: "Schnee" },
+    75: { icon: "🌨️", condition: "Starker Schnee" },
+    80: { icon: "🌦️", condition: "Schauer" },
+    81: { icon: "🌦️", condition: "Schauer" },
+    82: { icon: "⛈️", condition: "Starke Schauer" },
+    95: { icon: "⛈️", condition: "Gewitter" },
+    96: { icon: "⛈️", condition: "Gewitter" },
+    99: { icon: "⛈️", condition: "Gewitter" }
+  };
 
-export const DEFAULT_MEAL_IMAGE = `${BASE}speiseplan.jpg`;
-
-/*
-  Optionaler Bereich
-  Falls App.tsx bei dir mapWeatherCode aus constants importiert,
-  bleibt die App sonst stehen.
-  Wenn du es nicht nutzt, kannst du diesen Block löschen.
-*/
-
-export function mapWeatherCode(code: number): string {
-  // Minimaler Fallback. Du kannst es später erweitern.
-  if (code === 0) return "Klar";
-  if (code === 1 || code === 2) return "Wolkig";
-  if (code === 3) return "Bedeckt";
-  if (code >= 45 && code <= 48) return "Nebel";
-  if (code >= 51 && code <= 57) return "Niesel";
-  if (code >= 61 && code <= 67) return "Regen";
-  if (code >= 71 && code <= 77) return "Schnee";
-  if (code >= 80 && code <= 82) return "Schauer";
-  if (code >= 95) return "Gewitter";
-  return "Unbekannt";
+  return mappings[code] || { icon: "❓", condition: "Unbekannt" };
 }
