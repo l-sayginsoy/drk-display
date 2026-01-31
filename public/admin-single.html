@@ -515,7 +515,7 @@
                                                 React.createElement('div', null,
                                                     React.createElement('div', { 
                                                         className: "text-lg font-bold " + (isToday ? "text-orange-800" : "text-slate-900")
-                                                    }, dateInfo.dayName), // FIXED: Only this day name
+                                                    }, DAY_NAMES[index]), // FIXED: Use index directly
                                                     React.createElement('div', { 
                                                         className: "text-sm font-medium " + (isToday ? "text-orange-600" : "text-slate-500")
                                                     }, dateInfo.dateString)
