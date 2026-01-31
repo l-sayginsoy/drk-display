@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DRK Melm - Admin</title>
+    <title>DRK Melm - Admin Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
@@ -13,33 +13,104 @@
             padding: 0;
             background: #f8fafc;
         }
+        .week-nav-btn {
+            transition: all 0.2s ease;
+        }
+        .week-nav-btn:hover {
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
     
     <script type="module">
-        import React, { useState, useEffect } from 'https://esm.sh/react@19.0.0';
+        import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@19.0.0';
         import ReactDOM from 'https://esm.sh/react-dom@19.0.0/client';
 
         const ADMIN_PASSWORD = "drk";
         const DAYS = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
+        const DAY_NAMES = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
         const LOCATIONS = ['Cafeteria', 'Kleiner Saal', 'Garten', 'Terrasse', 'Wohnbereich', 'Speisesaal'];
+
+        // Get week info with CORRECT ISO week calculation
+        const getWeekInfo = (weekOffset = 0) => {
+            const now = new Date();
+            const targetDate = new Date(now.getTime() + weekOffset * 7 * 24 * 60 * 60 * 1000);
+            
+            // Correct ISO 8601 week calculation
+            const year = targetDate.getFullYear();
+            const startOfYear = new Date(year, 0, 1);
+            
+            // Find first Thursday of the year (determines week 1)
+            const jan4 = new Date(year, 0, 4);
+            const jan4Day = jan4.getDay() || 7; // Sunday = 7
+            const firstMonday = new Date(jan4.getTime() - (jan4Day - 1) * 24 * 60 * 60 * 1000);
+            
+            // Calculate week number
+            const timeDiff = targetDate.getTime() - firstMonday.getTime();
+            const weekNumber = Math.floor(timeDiff / (7 * 24 * 60 * 60 * 1000)) + 1;
+            
+            // Handle year boundaries (week can be 0, 53, etc.)
+            let finalWeek = weekNumber;
+            let finalYear = year;
+            
+            if (weekNumber <= 0) {
+                // This date belongs to last week of previous year
+                finalYear = year - 1;
+                finalWeek = 52; // Usually 52, sometimes 53
+            } else if (weekNumber > 52) {
+                // Check if this is actually week 1 of next year
+                const nextYearJan4 = new Date(year + 1, 0, 4);
+                const nextYearJan4Day = nextYearJan4.getDay() || 7;
+                if (nextYearJan4Day <= 4) { // Next year's week 1 has started
+                    finalYear = year + 1;
+                    finalWeek = 1;
+                } else {
+                    finalWeek = 53;
+                }
+            }
+            
+            // Get Monday of this week
+            const dayOfWeek = targetDate.getDay();
+            const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            const monday = new Date(targetDate.getTime() + mondayOffset * 24 * 60 * 60 * 1000);
+            
+            // Generate dates for the week
+            const weekDates = [];
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(monday.getTime() + i * 24 * 60 * 60 * 1000);
+                weekDates.push({
+                    day: DAYS,
+                    dayName: DAY_NAMES,
+                    date: date,
+                    dateString: date.toLocaleDateString('de-DE', { 
+                        day: '2-digit', 
+                        month: '2-digit'
+                    })
+                });
+            }
+            
+            return {
+                year: finalYear,
+                weekNumber: finalWeek,
+                weekKey: finalYear + '-W' + String(finalWeek).padStart(2, '0'),
+                weekDates,
+                displayText: 'KW ' + finalWeek,
+                yearText: finalYear,
+                dateRange: monday.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + 
+                          ' - ' + 
+                          new Date(monday.getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+            };
+        };
 
         function AdminApp() {
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [password, setPassword] = useState('');
             const [loginError, setLoginError] = useState(false);
             
-            const [githubConfig] = useState({
-                token: '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',
-                owner: 'l-sayginsoy',
-                repo: 'drk-display'
-            });
-            
-            const [weeklyProgram, setWeeklyProgram] = useState(
-                DAYS.map(day => ({ day, title: '', location: '', time: '' }))
-            );
+            const [weekOffset, setWeekOffset] = useState(0);
+            const [allWeeklyPrograms, setAllWeeklyPrograms] = useState({});
             const [eventConfig, setEventConfig] = useState({
                 active: false,
                 image: 'standard.jpg',
@@ -48,7 +119,21 @@
             });
             
             const [isSaving, setIsSaving] = useState(false);
+            const [isLoading, setIsLoading] = useState(false);
             const [status, setStatus] = useState(null);
+
+            const githubConfig = {
+                token: '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',
+                owner: 'l-sayginsoy',
+                repo: 'drk-display',
+                headers: {
+                    'Authorization': 'Bearer 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',
+                    'Accept': 'application/vnd.github.v3+json',
+                    'User-Agent': 'DRK-Admin-App'
+                }
+            };
+
+            const currentWeek = useMemo(() => getWeekInfo(weekOffset), [weekOffset]);
 
             const showStatus = (message, type) => {
                 setStatus({ message, type });
@@ -60,36 +145,72 @@
                 if (password === ADMIN_PASSWORD) {
                     setIsLoggedIn(true);
                     setLoginError(false);
-                    loadData();
+                    loadAllData();
                 } else {
                     setLoginError(true);
                 }
             };
 
-            const loadData = async () => {
+            const loadAllData = async () => {
+                setIsLoading(true);
                 try {
-                    const progRes = await fetch('https://api.github.com/repos/' + githubConfig.owner + '/' + githubConfig.repo + '/contents/wochenprogramm.txt', {
-                        headers: { Authorization: 'token ' + githubConfig.token }
+                    console.log('🔄 Loading all data...');
+                    
+                    // Load weekly program with cache busting
+                    const timestamp = Date.now();
+                    const progRes = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/wochenprogramm.txt?t=${timestamp}`, {
+                        headers: githubConfig.headers
                     });
                     
                     if (progRes.ok) {
                         const progData = await progRes.json();
                         const content = atob(progData.content).replace(/\r/g, '');
-                        const lines = content.split('\n').filter(line => line.includes('|') && !line.includes('2026-W'));
+                        const lines = content.split('\n').filter(line => line.trim());
                         
-                        const newProgram = DAYS.map(day => {
-                            const line = lines.find(l => l.startsWith(day + '|'));
-                            if (line) {
+                        console.log('📄 Loaded lines:', lines.length, lines);
+                        
+                        const programs = {};
+                        
+                        lines.forEach(line => {
+                            if (line.includes('|')) {
                                 const parts = line.split('|').map(s => s.trim());
-                                return { day, title: parts[1] || '', location: parts[2] || '', time: parts[3] || '' };
+                                
+                                if (parts.length >= 4) {
+                                    // Check if it's a week-specific entry (contains year-W pattern)
+                                    if (parts.match(/\d{4}-W\d{2}/)) {
+                                        const [weekKey, day, title, location, time] = parts;
+                                        if (!programs[weekKey]) programs[weekKey] = {};
+                                        programs[weekKey][day] = { 
+                                            title: title === '-' ? '' : title, 
+                                            location: location === '-' ? '' : location, 
+                                            time: time === '-' ? '' : time 
+                                        };
+                                        console.log('📆 Found week entry:', weekKey, day, { title, location, time });
+                                    } else {
+                                        // Standard day entry
+                                        const [day, title, location, time] = parts;
+                                        if (!programs['standard']) programs['standard'] = {};
+                                        programs['standard'][day] = { 
+                                            title: title || '', 
+                                            location: location || '', 
+                                            time: time || '' 
+                                        };
+                                        console.log('📆 Found standard entry:', day, { title, location, time });
+                                    }
+                                }
                             }
-                            return { day, title: '', location: '', time: '' };
                         });
-                        setWeeklyProgram(newProgram);
+                        
+                        console.log('📅 Parsed programs:', Object.keys(programs).length, 'weeks', programs);
+                        setAllWeeklyPrograms(programs);
+                    } else {
+                        console.warn('❌ Could not load weekly program:', progRes.status);
+                        showStatus('Wochenprogramm konnte nicht geladen werden', 'error');
                     }
 
-                    const eventRes = await fetch('https://api.github.com/repos/' + githubConfig.owner + '/' + githubConfig.repo + '/contents/event.txt', {
-                        headers: { Authorization: 'token ' + githubConfig.token }
+                    // Load event config with cache busting
+                    const eventRes = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/event.txt?t=${timestamp}`, {
+                        headers: githubConfig.headers
                     });
                     
                     if (eventRes.ok) {
@@ -113,61 +234,134 @@
                         });
                     }
                 } catch (error) {
-                    showStatus('Fehler beim Laden der Daten', 'error');
+                    console.error('Load error:', error);
+                    showStatus('❌ Fehler beim Laden der Daten', 'error');
+                } finally {
+                    setIsLoading(false);
                 }
+            };
+
+            // Get current week's data - try week-specific first, then fall back to standard
+            const getCurrentWeekData = () => {
+                const weekData = allWeeklyPrograms[currentWeek.weekKey] || allWeeklyPrograms['standard'] || {};
+                console.log('Week data for', currentWeek.weekKey + ':', weekData); // Debug
+                return DAYS.map(day => ({
+                    day,
+                    title: weekData[day]?.title || '',
+                    location: weekData[day]?.location || '',
+                    time: weekData[day]?.time || ''
+                }));
+            };
+
+            const updateActivity = (dayIndex, field, value) => {
+                const day = DAYS[dayIndex];
+                const weekKey = currentWeek.weekKey;
+                
+                setAllWeeklyPrograms(prev => ({
+                    ...prev,
+                    [weekKey]: {
+                        ...prev[weekKey],
+                        [day]: {
+                            ...prev[weekKey]?.[day],
+                            [field]: value
+                        }
+                    }
+                }));
             };
 
             const saveData = async () => {
                 setIsSaving(true);
+                console.log('💾 Starting save process...');
                 try {
-                    const progContent = weeklyProgram
-                        .map(entry => entry.day + '|' + entry.title + '|' + entry.location + '|' + entry.time)
-                        .join('\n');
+                    // Build complete program content - PRESERVE ALL WEEKS
+                    let progContent = '';
+                    
+                    console.log('📋 Current data to save:', allWeeklyPrograms);
+                    
+                    // Add standard entries first (if any)
+                    if (allWeeklyPrograms['standard']) {
+                        Object.entries(allWeeklyPrograms['standard']).forEach(([day, data]) => {
+                            if (data.title || data.location || data.time) {
+                                progContent += `${day}|${data.title}|${data.location}|${data.time}\n`;
+                            }
+                        });
+                    }
+                    
+                    // Add ALL week-specific entries (not just current week!)
+                    Object.entries(allWeeklyPrograms).forEach(([weekKey, weekData]) => {
+                        if (weekKey !== 'standard') {
+                            Object.entries(weekData).forEach(([day, data]) => {
+                                if (data.title || data.location || data.time) {
+                                    progContent += `${weekKey}|${day}|${data.title || '-'}|${data.location || '-'}|${data.time || '-'}\n`;
+                                }
+                            });
+                        }
+                    });
 
-                    const progRes = await fetch('https://api.github.com/repos/' + githubConfig.owner + '/' + githubConfig.repo + '/contents/wochenprogramm.txt', {
-                        headers: { Authorization: 'token ' + githubConfig.token }
+                    console.log('📝 Content to save:', progContent);
+
+                    // Get current file SHA for proper update
+                    const progRes = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/wochenprogramm.txt`, {
+                        headers: githubConfig.headers
                     });
 
                     let progSha = '';
                     if (progRes.ok) {
                         const data = await progRes.json();
                         progSha = data.sha;
+                        console.log('✅ Got file SHA:', progSha);
+                    } else {
+                        console.warn('⚠️ Could not get current SHA:', progRes.status);
+                        throw new Error(`Failed to get current file SHA: ${progRes.status}`);
                     }
 
-                    await fetch('https://api.github.com/repos/' + githubConfig.owner + '/' + githubConfig.repo + '/contents/wochenprogramm.txt', {
+                    // Save program with proper SHA
+                    const saveRes = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/wochenprogramm.txt`, {
                         method: 'PUT',
-                        headers: { 
-                            Authorization: 'token ' + githubConfig.token,
+                        headers: {
+                            ...githubConfig.headers,
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            message: 'Update wochenprogramm from admin',
-                            content: btoa(progContent),
-                            sha: progSha || undefined
+                            message: `Update ${currentWeek.weekKey} from admin dashboard`,
+                            content: btoa(progContent.trim()),
+                            sha: progSha
                         })
                     });
 
+                    if (!saveRes.ok) {
+                        const errorData = await saveRes.text();
+                        console.error('❌ Save failed:', saveRes.status, errorData);
+                        throw new Error(`Save failed: ${saveRes.status} - ${errorData}`);
+                    }
+
+                    console.log('✅ Program saved successfully');
+
+                    // Save event config with proper SHA handling
                     const eventContent = [
-                        'aktiv: ' + (eventConfig.active ? 'ja' : 'nein'),
-                        'bild: ' + eventConfig.image,
-                        'start: ' + eventConfig.start,
-                        'ende: ' + eventConfig.end
+                        `aktiv: ${eventConfig.active ? 'ja' : 'nein'}`,
+                        `bild: ${eventConfig.image}`,
+                        `start: ${eventConfig.start}`,
+                        `ende: ${eventConfig.end}`
                     ].join('\n');
 
-                    const eventRes = await fetch('https://api.github.com/repos/' + githubConfig.owner + '/' + githubConfig.repo + '/contents/event.txt', {
-                        headers: { Authorization: 'token ' + githubConfig.token }
+                    const eventRes = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/event.txt`, {
+                        headers: githubConfig.headers
                     });
 
                     let eventSha = '';
                     if (eventRes.ok) {
                         const data = await eventRes.json();
                         eventSha = data.sha;
+                        console.log('✅ Got event SHA:', eventSha);
+                    } else {
+                        console.warn('⚠️ Could not get event SHA:', eventRes.status);
                     }
 
-                    await fetch('https://api.github.com/repos/' + githubConfig.owner + '/' + githubConfig.repo + '/contents/event.txt', {
+                    const eventSaveRes = await fetch(`https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/event.txt`, {
                         method: 'PUT',
-                        headers: { 
-                            Authorization: 'token ' + githubConfig.token,
+                        headers: {
+                            ...githubConfig.headers,
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
@@ -177,24 +371,45 @@
                         })
                     });
 
-                    showStatus('✅ Erfolgreich gespeichert!', 'success');
+                    if (!eventSaveRes.ok) {
+                        const errorData = await eventSaveRes.text();
+                        console.error('❌ Event save failed:', eventSaveRes.status, errorData);
+                        throw new Error(`Event save failed: ${eventSaveRes.status} - ${errorData}`);
+                    }
+
+                    console.log('✅ Event config saved successfully');
+
+                    showStatus(`✅ ${currentWeek.displayText} erfolgreich gespeichert!`, 'success');
+                    
+                    // Auto-reload after 2 seconds to confirm changes
+                    setTimeout(() => {
+                        console.log('🔄 Auto-reloading data to confirm save...');
+                        loadAllData();
+                    }, 2000);
                 } catch (error) {
-                    showStatus('❌ Fehler beim Speichern', 'error');
+                    console.error('💥 Save error:', error.message, error);
+                    showStatus(`❌ Fehler beim Speichern: ${error.message}`, 'error');
                 } finally {
                     setIsSaving(false);
                 }
             };
 
+            const currentWeekData = getCurrentWeekData();
+
+            // Quick jump to current week
+            const jumpToCurrentWeek = () => setWeekOffset(0);
+
+            // Login Screen
             if (!isLoggedIn) {
                 return React.createElement('div', { 
-                    className: "min-h-screen bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center p-4" 
+                    className: "min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-amber-50 flex items-center justify-center p-4" 
                 },
                     React.createElement('div', { 
-                        className: "bg-white rounded-3xl shadow-2xl p-12 w-full max-w-md" 
+                        className: "bg-white rounded-3xl shadow-2xl p-12 w-full max-w-md border border-red-100" 
                     },
                         React.createElement('div', { className: "text-center mb-8" },
                             React.createElement('div', { 
-                                className: "w-20 h-20 bg-red-600 rounded-2xl mx-auto mb-6 flex items-center justify-center" 
+                                className: "w-20 h-20 bg-red-600 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-xl" 
                             },
                                 React.createElement('span', { 
                                     className: "text-white font-black text-2xl" 
@@ -215,7 +430,7 @@
                                 type: "password",
                                 value: password,
                                 onChange: (e) => setPassword(e.target.value),
-                                className: "w-full px-6 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold text-center text-xl focus:border-red-600 outline-none transition-colors",
+                                className: "w-full px-6 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold text-center text-xl focus:border-red-600 outline-none transition-all",
                                 placeholder: "Passwort eingeben"
                             }),
                             loginError && React.createElement('p', { 
@@ -223,21 +438,24 @@
                             }, "❌ Falsches Passwort"),
                             React.createElement('button', { 
                                 type: "submit",
-                                className: "w-full bg-red-600 text-white font-black py-4 rounded-2xl hover:bg-red-700 transition-colors uppercase tracking-wide"
+                                className: "w-full bg-red-600 text-white font-black py-4 rounded-2xl hover:bg-red-700 transition-all uppercase tracking-wide shadow-lg"
                             }, "Einloggen")
                         )
                     )
                 );
             }
 
+            // Main Admin Interface
             return React.createElement('div', { className: "min-h-screen bg-slate-50" },
+                // Status Message
                 status && React.createElement('div', { 
                     className: 'fixed top-4 right-4 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-xl font-bold ' +
                         (status.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white')
                 }, status.message),
 
-                React.createElement('header', { className: "bg-white border-b border-slate-200 px-6 py-4" },
-                    React.createElement('div', { className: "max-w-6xl mx-auto flex items-center justify-between" },
+                // Header
+                React.createElement('header', { className: "bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-40 shadow-sm" },
+                    React.createElement('div', { className: "max-w-7xl mx-auto flex items-center justify-between" },
                         React.createElement('div', { className: "flex items-center gap-4" },
                             React.createElement('div', { 
                                 className: "w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center" 
@@ -247,7 +465,7 @@
                             React.createElement('div', null,
                                 React.createElement('h1', { 
                                     className: "text-2xl font-black text-slate-900 tracking-tight" 
-                                }, "🏥 Admin Dashboard"),
+                                }, "Admin Dashboard"),
                                 React.createElement('p', { 
                                     className: "text-slate-500 font-medium text-sm" 
                                 }, "DRK Melm Verwaltung")
@@ -256,72 +474,130 @@
                         React.createElement('button', {
                             onClick: () => setIsLoggedIn(false),
                             className: "px-4 py-2 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-colors"
-                        }, "🚪 Logout")
+                        }, "Logout")
                     )
                 ),
 
-                React.createElement('main', { className: "max-w-6xl mx-auto p-6 space-y-8" },
-                    React.createElement('div', { className: "flex justify-end" },
-                        React.createElement('button', {
-                            onClick: saveData,
-                            disabled: isSaving,
-                            className: "px-8 py-4 bg-red-600 text-white font-black rounded-2xl hover:bg-red-700 transition-colors disabled:opacity-50 shadow-lg"
-                        }, isSaving ? '⏳ Speichert...' : '💾 Änderungen Speichern')
+                // Main Content
+                React.createElement('main', { className: "max-w-7xl mx-auto p-6 space-y-8" },
+                    // Week Navigation Bar - FIXED SIZE
+                    React.createElement('div', { className: "bg-white rounded-3xl p-6 shadow-sm border border-slate-200" },
+                        React.createElement('div', { className: "flex items-center justify-between" },
+                            // Navigation Controls - SAME SIZE AS BUTTONS
+                            React.createElement('div', { className: "flex items-center gap-4" },
+                                React.createElement('button', {
+                                    onClick: () => setWeekOffset(prev => prev - 1),
+                                    className: "week-nav-btn px-4 py-3 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl font-bold text-slate-700 transition-all"
+                                }, "⬅ Vorherige"),
+                                
+                                // FIXED: Same size as buttons, smaller text
+                                React.createElement('div', { className: "px-4 py-3 bg-red-600 text-white rounded-xl font-bold border border-red-500" },
+                                    React.createElement('div', { className: "flex items-center gap-2" },
+                                        React.createElement('span', null, currentWeek.displayText),
+                                        React.createElement('span', null, "•"),
+                                        React.createElement('span', null, currentWeek.yearText)
+                                    ),
+                                    React.createElement('div', { className: "text-xs opacity-90 mt-1" }, currentWeek.dateRange)
+                                ),
+                                
+                                React.createElement('button', {
+                                    onClick: () => setWeekOffset(prev => prev + 1),
+                                    className: "week-nav-btn px-4 py-3 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl font-bold text-slate-700 transition-all"
+                                }, "Nächste ➡")
+                            ),
+                            
+                            // Action Buttons
+                            React.createElement('div', { className: "flex items-center gap-4" },
+                                weekOffset !== 0 && React.createElement('button', {
+                                    onClick: jumpToCurrentWeek,
+                                    className: "px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-xl transition-all border border-blue-300"
+                                }, "Aktuelle Woche"),
+                                
+                                React.createElement('button', {
+                                    onClick: saveData,
+                                    disabled: isSaving || isLoading,
+                                    className: "px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-black rounded-xl transition-all disabled:opacity-50 shadow-lg"
+                                }, 
+                                    isSaving ? "Speichert..." : "Speichern"
+                                )
+                            )
+                        )
                     ),
 
                     React.createElement('div', { className: "grid grid-cols-1 lg:grid-cols-3 gap-8" },
+                        // Weekly Program - Takes 2/3 width
                         React.createElement('div', { 
                             className: "lg:col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-slate-200" 
                         },
-                            React.createElement('h2', { 
-                                className: "text-3xl font-black text-slate-900 mb-8" 
-                            }, "📅 Wochenprogramm (Standard)"),
+                            React.createElement('div', { className: "flex items-center justify-between mb-6" },
+                                React.createElement('h2', { 
+                                    className: "text-2xl font-black text-slate-900 flex items-center gap-3" 
+                                }, 
+                                    "Wochenprogramm",
+                                    React.createElement('span', { 
+                                        className: "text-sm font-bold text-red-600 bg-red-50 px-3 py-1 rounded-lg" 
+                                    }, currentWeek.displayText + ' • ' + currentWeek.yearText)
+                                ),
+                                isLoading && React.createElement('div', { 
+                                    className: "text-slate-500 font-medium" 
+                                }, "Lade Daten...")
+                            ),
                             
-                            React.createElement('div', { className: "space-y-6" },
-                                weeklyProgram.map((entry, index) =>
-                                    React.createElement('div', { 
+                            React.createElement('div', { className: "space-y-4" },
+                                currentWeekData.map((entry, index) => {
+                                    const dateInfo = currentWeek.weekDates[index];
+                                    const isToday = dateInfo.date.toDateString() === new Date().toDateString();
+                                    
+                                    return React.createElement('div', { 
                                         key: entry.day, 
-                                        className: "bg-slate-50 rounded-2xl p-6 border border-slate-100" 
+                                        className: "bg-slate-50 rounded-2xl p-6 border " + (isToday ? "border-orange-300 bg-orange-50" : "border-slate-200")
                                     },
-                                        React.createElement('div', { className: "flex items-center gap-3 mb-4" },
-                                            React.createElement('span', { 
-                                                className: "text-2xl font-black text-slate-900" 
-                                            }, entry.day),
-                                            React.createElement('span', { 
-                                                className: "text-lg font-bold text-slate-700" 
-                                            }, ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'][index])
+                                        // Day Header - FIXED: Only day name, not all days
+                                        React.createElement('div', { className: "flex items-center justify-between mb-4" },
+                                            React.createElement('div', { className: "flex items-center gap-3" },
+                                                React.createElement('div', { 
+                                                    className: "w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg " +
+                                                    (isToday ? "bg-orange-500 text-white" : "bg-slate-200 text-slate-700")
+                                                }, entry.day),
+                                                React.createElement('div', null,
+                                                    React.createElement('div', { 
+                                                        className: "text-lg font-bold " + (isToday ? "text-orange-800" : "text-slate-900")
+                                                    }, dateInfo.dayName), // FIXED: Only this day name
+                                                    React.createElement('div', { 
+                                                        className: "text-sm font-medium " + (isToday ? "text-orange-600" : "text-slate-500")
+                                                    }, dateInfo.dateString)
+                                                )
+                                            ),
+                                            (entry.title || entry.location || entry.time) && React.createElement('div', { 
+                                                className: "text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded"
+                                            }, "Geplant")
                                         ),
                                         
+                                        // Input Fields - FIXED: Same styling for all
                                         React.createElement('div', { className: "grid grid-cols-12 gap-4" },
+                                            // Activity - 5 columns
                                             React.createElement('div', { className: "col-span-5" },
                                                 React.createElement('label', { 
                                                     className: "block text-sm font-bold text-slate-600 mb-2" 
-                                                }, "Aktivität"),
+                                                }, "AKTIVITÄT"), // FIXED: No icon
                                                 React.createElement('input', {
                                                     type: "text",
                                                     value: entry.title,
-                                                    onChange: (e) => {
-                                                        const newProgram = [...weeklyProgram];
-                                                        newProgram[index].title = e.target.value;
-                                                        setWeeklyProgram(newProgram);
-                                                    },
+                                                    onChange: (e) => updateActivity(index, 'title', e.target.value),
                                                     placeholder: "Was findet statt?",
                                                     className: "w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-medium focus:border-red-600 outline-none transition-colors"
                                                 })
                                             ),
                                             
+                                            // Location - 4 columns, FIXED: Same styling as Activity
                                             React.createElement('div', { className: "col-span-4" },
                                                 React.createElement('label', { 
                                                     className: "block text-sm font-bold text-slate-600 mb-2" 
-                                                }, "Ort"),
+                                                }, "ORT"), // FIXED: No icon
                                                 React.createElement('select', {
                                                     value: entry.location,
-                                                    onChange: (e) => {
-                                                        const newProgram = [...weeklyProgram];
-                                                        newProgram[index].location = e.target.value;
-                                                        setWeeklyProgram(newProgram);
-                                                    },
-                                                    className: "w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-medium focus:border-red-600 outline-none transition-colors"
+                                                    onChange: (e) => updateActivity(index, 'location', e.target.value),
+                                                    className: "w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-medium focus:border-red-600 outline-none transition-colors" // FIXED: Same styling
                                                 },
                                                     React.createElement('option', { value: "" }, "Ort wählen..."),
                                                     LOCATIONS.map(location =>
@@ -333,87 +609,87 @@
                                                 )
                                             ),
                                             
+                                            // Time - 3 columns
                                             React.createElement('div', { className: "col-span-3" },
                                                 React.createElement('label', { 
                                                     className: "block text-sm font-bold text-slate-600 mb-2" 
-                                                }, "Uhrzeit"),
+                                                }, "ZEIT"), // FIXED: No icon
                                                 React.createElement('input', {
                                                     type: "time",
                                                     value: entry.time,
-                                                    onChange: (e) => {
-                                                        const newProgram = [...weeklyProgram];
-                                                        newProgram[index].time = e.target.value;
-                                                        setWeeklyProgram(newProgram);
-                                                    },
+                                                    onChange: (e) => updateActivity(index, 'time', e.target.value),
                                                     className: "w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-medium focus:border-red-600 outline-none transition-colors"
                                                 })
                                             )
                                         )
-                                    )
-                                )
+                                    );
+                                })
                             )
                         ),
 
+                        // Event Config - Takes 1/3 width
                         React.createElement('div', { 
-                            className: "bg-slate-900 text-white rounded-3xl p-8" 
+                            className: "bg-slate-900 text-white rounded-3xl p-6 h-fit sticky top-32 shadow-lg" 
                         },
                             React.createElement('h2', { 
                                 className: "text-xl font-black mb-6" 
-                            }, "🎉 Event-Modus"),
+                            }, "Event-Modus"),
                             
+                            // Status Toggle
                             React.createElement('div', { className: "mb-6" },
                                 React.createElement('label', { 
                                     className: "text-sm font-bold text-white/70 block mb-2" 
-                                }, "Status"),
+                                }, "STATUS"),
                                 React.createElement('div', { 
                                     className: "grid grid-cols-2 gap-2 bg-white/10 p-1 rounded-xl" 
                                 },
                                     React.createElement('button', {
                                         onClick: () => setEventConfig(prev => ({ ...prev, active: true })),
-                                        className: 'py-3 px-4 rounded-lg font-bold text-sm transition-colors ' +
+                                        className: 'py-3 px-4 rounded-lg font-bold text-sm transition-all ' +
                                             (eventConfig.active ? 'bg-green-600 text-white' : 'text-white/50 hover:text-white')
-                                    }, "✅ Aktiv"),
+                                    }, "AKTIV"),
                                     React.createElement('button', {
                                         onClick: () => setEventConfig(prev => ({ ...prev, active: false })),
-                                        className: 'py-3 px-4 rounded-lg font-bold text-sm transition-colors ' +
+                                        className: 'py-3 px-4 rounded-lg font-bold text-sm transition-all ' +
                                             (!eventConfig.active ? 'bg-red-600 text-white' : 'text-white/50 hover:text-white')
-                                    }, "❌ Aus")
+                                    }, "AUS")
                                 )
                             ),
 
+                            // Event Details
                             React.createElement('div', { className: "space-y-4" },
                                 React.createElement('div', null,
                                     React.createElement('label', { 
                                         className: "text-sm font-bold text-white/70 block mb-2" 
-                                    }, "🖼️ Bilddatei"),
+                                    }, "BILDDATEI"),
                                     React.createElement('input', {
                                         type: "text",
                                         value: eventConfig.image,
                                         onChange: (e) => setEventConfig(prev => ({ ...prev, image: e.target.value })),
-                                        placeholder: "Faschingsparty.jpg",
-                                        className: "w-full px-3 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:border-white/40 outline-none"
+                                        placeholder: "standard.jpg",
+                                        className: "w-full px-3 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:border-white/40 outline-none transition-all"
                                     })
                                 ),
                                 React.createElement('div', null,
                                     React.createElement('label', { 
                                         className: "text-sm font-bold text-white/70 block mb-2" 
-                                    }, "🕐 Start"),
+                                    }, "START"),
                                     React.createElement('input', {
                                         type: "datetime-local",
                                         value: eventConfig.start,
                                         onChange: (e) => setEventConfig(prev => ({ ...prev, start: e.target.value })),
-                                        className: "w-full px-3 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:border-white/40 outline-none"
+                                        className: "w-full px-3 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:border-white/40 outline-none transition-all"
                                     })
                                 ),
                                 React.createElement('div', null,
                                     React.createElement('label', { 
                                         className: "text-sm font-bold text-white/70 block mb-2" 
-                                    }, "🕕 Ende"),
+                                    }, "ENDE"),
                                     React.createElement('input', {
                                         type: "datetime-local",
                                         value: eventConfig.end,
                                         onChange: (e) => setEventConfig(prev => ({ ...prev, end: e.target.value })),
-                                        className: "w-full px-3 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:border-white/40 outline-none"
+                                        className: "w-full px-3 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:border-white/40 outline-none transition-all"
                                     })
                                 )
                             )
