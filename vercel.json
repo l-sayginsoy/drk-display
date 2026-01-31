@@ -4,7 +4,7 @@
   "rewrites": [
     {
       "source": "/admin",
-      "destination": "/admin/admin.html"
+      "destination": "/admin.html"
     },
     {
       "source": "/(.*)",
