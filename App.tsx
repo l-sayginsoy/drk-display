@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import WeatherBackground from './WeatherBackground';
-import WeeklyProgram from './WeeklyProgram';
-import MealDisplay from './MealDisplay';
+import WeatherBackground from './components/WeatherBackground';
+import WeeklyProgram from './components/WeeklyProgram';
+import MealDisplay from './components/MealDisplay';
 import { fetchEventOverride, fetchWeeklyProgram, fetchQuote } from './dataService';
 import { WeeklyProgram as IWeeklyProgram, EventOverride, WeatherData } from './types';
-import { mapWeatherCode } from './constants';
+import { mapWeatherCode, GITHUB_RAW_BASE } from './constants';
 
 const App: React.FC = () => {
   const [time, setTime] = useState(new Date());
@@ -45,13 +46,12 @@ const App: React.FC = () => {
         const forecast = [];
         const days = ['SO', 'MO', 'DI', 'MI', 'DO', 'FR', 'SA'];
         for (let i = 1; i <= 3; i++) {
-          const d = new Date();
-          d.setDate(d.getDate() + i);
+          const d = new Date(); d.setDate(d.getDate() + i);
           forecast.push({
             day: days[d.getDay()],
-            icon: mapWeatherCode(data.daily.weather_code).icon,
-            max: Math.round(data.daily.temperature_2m_max),
-            min: Math.round(data.daily.temperature_2m_min)
+            icon: mapWeatherCode(data.daily.weather_code[i]).icon,
+            max: Math.round(data.daily.temperature_2m_max[i]),
+            min: Math.round(data.daily.temperature_2m_min[i])
           });
         }
         setWeather({
@@ -59,8 +59,8 @@ const App: React.FC = () => {
           code: data.current.weather_code,
           isDay: data.current.is_day === 1,
           condition,
-          max: Math.round(data.daily.temperature_2m_max),
-          min: Math.round(data.daily.temperature_2m_min),
+          max: Math.round(data.daily.temperature_2m_max[0]),
+          min: Math.round(data.daily.temperature_2m_min[0]),
           forecast
         });
       }
@@ -75,20 +75,15 @@ const App: React.FC = () => {
     const tInterval = setInterval(() => setTime(new Date()), 1000);
     const dInterval = setInterval(updateAllData, 300000);
     const wInterval = setInterval(fetchWeather, 900000);
-    return () => {
-      clearInterval(tInterval);
-      clearInterval(dInterval);
-      clearInterval(wInterval);
-    };
+    return () => { clearInterval(tInterval); clearInterval(dInterval); clearInterval(wInterval); };
   }, [updateAllData, fetchWeather]);
-
-  const baseUrl = import.meta.env.BASE_URL;
-  const logoUrl = `${baseUrl}DRK-Logo_lang_RGB.png`;
 
   return (
     <div className="relative h-screen w-screen overflow-hidden text-white font-['Inter'] flex flex-col bg-slate-950">
+      {/* Environmental Engine Background */}
       <WeatherBackground code={weather?.code} isDay={currentIsDay} />
 
+      {/* Header - Bleibt bei 15vh für den Abstand nach oben */}
       <header className="h-[15vh] flex items-end px-[4vw] pb-[3vh] shrink-0 z-20">
         <div className="flex items-center gap-6 drop-shadow-2xl">
           <span className="text-[8vh] font-[900] tracking-tighter tabular-nums leading-none">
@@ -106,16 +101,21 @@ const App: React.FC = () => {
         </div>
       </header>
 
+      {/* Main Content Area */}
       <main className="flex-1 flex px-[4vw] py-[2vh] gap-[3vw] min-h-0 z-10">
+        {/* MealDisplay auf flex-[2.2] angepasst (Mittelweg zwischen 1.6 und 3) */}
         <div className="flex-[2.2] h-full overflow-hidden">
           <MealDisplay override={override} />
         </div>
+        {/* WeeklyProgram flex-[1] belassen */}
         <div className="flex-[1] h-full overflow-hidden">
           <WeeklyProgram programs={programs} />
         </div>
       </main>
 
+      {/* Footer (Absolute White Bar) */}
       <footer className="h-[10vh] bg-white text-slate-900 flex items-center justify-between px-[4vw] shrink-0 z-[100] shadow-[0_-15px_40px_rgba(0,0,0,0.3)] border-t border-slate-100">
+        {/* Weather Block */}
         <div className="w-[30%] flex items-center shrink-0">
           {weather ? (
             <div className="flex items-center gap-8">
@@ -128,7 +128,7 @@ const App: React.FC = () => {
               </div>
               <div className="h-[4.5vh] w-px bg-slate-200"></div>
               <div className="flex gap-5">
-                {weather.forecast.map((f: any, i: number) => (
+                {weather.forecast.map((f, i) => (
                   <div key={i} className="flex flex-col items-center">
                     <span className="text-[1vh] font-black text-slate-400 uppercase leading-none mb-1">{f.day}</span>
                     <span className="text-[2.2vh] leading-none mb-1">{f.icon}</span>
@@ -145,22 +145,21 @@ const App: React.FC = () => {
           )}
         </div>
 
+        {/* Quote Block */}
         <div className="flex-1 px-10 text-center flex items-center justify-center">
           <p className="text-[2.2vh] font-bold italic text-slate-500 leading-tight line-clamp-2 max-w-[45vw]">
             "{quote}"
           </p>
         </div>
 
+        {/* Logo Block */}
         <div className="w-[25%] flex justify-end items-center shrink-0">
           {!logoError ? (
-            <img
-              src={logoUrl}
-              alt="DRK Logo"
+            <img 
+              src={`${GITHUB_RAW_BASE}DRK-Logo_lang_RGB.png`} 
+              alt="DRK Logo" 
               className="h-[3.8vh] w-auto object-contain"
-              onError={() => {
-                console.error('Logo konnte nicht geladen werden', logoUrl);
-                setLogoError(true);
-              }}
+              onError={() => setLogoError(true)}
             />
           ) : (
             <span className="text-[2.8vh] font-black text-red-600 uppercase tracking-tighter">DRK MELM</span>
