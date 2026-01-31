@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DRK Melm - Admin</title>
+    <title>DRK Melm - Admin Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
@@ -13,33 +13,84 @@
             padding: 0;
             background: #f8fafc;
         }
+        .week-nav-btn {
+            transition: all 0.2s ease;
+        }
+        .week-nav-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
     
     <script type="module">
-        import React, { useState, useEffect } from 'https://esm.sh/react@19.0.0';
+        import React, { useState, useEffect, useMemo } from 'https://esm.sh/react@19.0.0';
         import ReactDOM from 'https://esm.sh/react-dom@19.0.0/client';
 
         const ADMIN_PASSWORD = "drk";
         const DAYS = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'];
+        const DAY_NAMES = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
         const LOCATIONS = ['Cafeteria', 'Kleiner Saal', 'Garten', 'Terrasse', 'Wohnbereich', 'Speisesaal'];
+
+        // Get week info with proper ISO week calculation
+        const getWeekInfo = (weekOffset = 0) => {
+            const now = new Date();
+            const targetDate = new Date(now.getTime() + weekOffset * 7 * 24 * 60 * 60 * 1000);
+            
+            // ISO 8601 week calculation
+            const startOfYear = new Date(targetDate.getFullYear(), 0, 1);
+            const firstThursday = new Date(startOfYear);
+            firstThursday.setDate(startOfYear.getDate() + (4 - startOfYear.getDay() + 7) % 7);
+            
+            const weekNumber = Math.ceil((targetDate - firstThursday) / (7 * 24 * 60 * 60 * 1000)) + 1;
+            
+            // Get Monday of this week
+            const dayOfWeek = targetDate.getDay();
+            const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            const monday = new Date(targetDate.getTime() + mondayOffset * 24 * 60 * 60 * 1000);
+            
+            // Generate dates for the week
+            const weekDates = [];
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(monday.getTime() + i * 24 * 60 * 60 * 1000);
+                weekDates.push({
+                    day: DAYS,
+                    dayName: DAY_NAMES,
+                    date: date,
+                    dateString: date.toLocaleDateString('de-DE', { 
+                        day: '2-digit', 
+                        month: '2-digit',
+                        year: '2-digit'
+                    }),
+                    fullDateString: date.toLocaleDateString('de-DE', { 
+                        weekday: 'long',
+                        day: '2-digit', 
+                        month: 'long' 
+                    })
+                });
+            }
+            
+            return {
+                year: targetDate.getFullYear(),
+                weekNumber: Math.max(1, Math.min(52, weekNumber)),
+                weekKey: targetDate.getFullYear() + '-W' + String(Math.max(1, Math.min(52, weekNumber))).padStart(2, '0'),
+                weekDates,
+                displayText: 'KW ' + Math.max(1, Math.min(52, weekNumber)) + ' • ' + targetDate.getFullYear(),
+                dateRange: monday.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + 
+                          ' - ' + 
+                          new Date(monday.getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+            };
+        };
 
         function AdminApp() {
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [password, setPassword] = useState('');
             const [loginError, setLoginError] = useState(false);
             
-            const [githubConfig] = useState({
-                token: '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',
-                owner: 'l-sayginsoy',
-                repo: 'drk-display'
-            });
-            
-            const [weeklyProgram, setWeeklyProgram] = useState(
-                DAYS.map(day => ({ day, title: '', location: '', time: '' }))
-            );
+            const [weekOffset, setWeekOffset] = useState(0);
+            const [allWeeklyPrograms, setAllWeeklyPrograms] = useState({});
             const [eventConfig, setEventConfig] = useState({
                 active: false,
                 image: 'standard.jpg',
@@ -48,11 +99,20 @@
             });
             
             const [isSaving, setIsSaving] = useState(false);
+            const [isLoading, setIsLoading] = useState(false);
             const [status, setStatus] = useState(null);
+
+            const githubConfig = {
+                token: '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',
+                owner: 'l-sayginsoy',
+                repo: 'drk-display'
+            };
+
+            const currentWeek = useMemo(() => getWeekInfo(weekOffset), [weekOffset]);
 
             const showStatus = (message, type) => {
                 setStatus({ message, type });
-                setTimeout(() => setStatus(null), 4000);
+                setTimeout(() => setStatus(null), 5000);
             };
 
             const handleLogin = (e) => {
@@ -60,14 +120,16 @@
                 if (password === ADMIN_PASSWORD) {
                     setIsLoggedIn(true);
                     setLoginError(false);
-                    loadData();
+                    loadAllData();
                 } else {
                     setLoginError(true);
                 }
             };
 
-            const loadData = async () => {
+            const loadAllData = async () => {
+                setIsLoading(true);
                 try {
+                    // Load weekly program
                     const progRes = await fetch('https://api.github.com/repos/' + githubConfig.owner + '/' + githubConfig.repo + '/contents/wochenprogramm.txt', {
                         headers: { Authorization: 'token ' + githubConfig.token }
                     });
@@ -75,19 +137,42 @@
                     if (progRes.ok) {
                         const progData = await progRes.json();
                         const content = atob(progData.content).replace(/\r/g, '');
-                        const lines = content.split('\n').filter(line => line.includes('|') && !line.includes('2026-W'));
+                        const lines = content.split('\n').filter(line => line.trim());
                         
-                        const newProgram = DAYS.map(day => {
-                            const line = lines.find(l => l.startsWith(day + '|'));
-                            if (line) {
+                        const programs = {};
+                        
+                        lines.forEach(line => {
+                            if (line.includes('|')) {
                                 const parts = line.split('|').map(s => s.trim());
-                                return { day, title: parts[1] || '', location: parts[2] || '', time: parts[3] || '' };
+                                
+                                if (parts.length >= 4) {
+                                    // Check if it's a week-specific entry
+                                    if (parts.includes('-W')) {
+                                        const [weekKey, day, title, location, time] = parts;
+                                        if (!programs[weekKey]) programs[weekKey] = {};
+                                        programs[weekKey][day] = { 
+                                            title: title === '-' ? '' : title, 
+                                            location: location === '-' ? '' : location, 
+                                            time: time === '-' ? '' : time 
+                                        };
+                                    } else {
+                                        // Standard day entry
+                                        const [day, title, location, time] = parts;
+                                        if (!programs['standard']) programs['standard'] = {};
+                                        programs['standard'][day] = { 
+                                            title: title || '', 
+                                            location: location || '', 
+                                            time: time || '' 
+                                        };
+                                    }
+                                }
                             }
-                            return { day, title: '', location: '', time: '' };
                         });
-                        setWeeklyProgram(newProgram);
+                        
+                        setAllWeeklyPrograms(programs);
                     }
 
+                    // Load event config
                     const eventRes = await fetch('https://api.github.com/repos/' + githubConfig.owner + '/' + githubConfig.repo + '/contents/event.txt', {
                         headers: { Authorization: 'token ' + githubConfig.token }
                     });
@@ -113,17 +198,70 @@
                         });
                     }
                 } catch (error) {
-                    showStatus('Fehler beim Laden der Daten', 'error');
+                    console.error('Load error:', error);
+                    showStatus('❌ Fehler beim Laden der Daten', 'error');
+                } finally {
+                    setIsLoading(false);
                 }
+            };
+
+            // Get current week's data - try week-specific first, then fall back to standard
+            const getCurrentWeekData = () => {
+                const weekData = allWeeklyPrograms[currentWeek.weekKey] || allWeeklyPrograms['standard'] || {};
+                return DAYS.map(day => ({
+                    day,
+                    title: weekData[day]?.title || '',
+                    location: weekData[day]?.location || '',
+                    time: weekData[day]?.time || ''
+                }));
+            };
+
+            const updateActivity = (dayIndex, field, value) => {
+                const day = DAYS[dayIndex];
+                const weekKey = currentWeek.weekKey;
+                
+                setAllWeeklyPrograms(prev => ({
+                    ...prev,
+                    [weekKey]: {
+                        ...prev[weekKey],
+                        [day]: {
+                            ...prev[weekKey]?.[day],
+                            [field]: value
+                        }
+                    }
+                }));
             };
 
             const saveData = async () => {
                 setIsSaving(true);
                 try {
-                    const progContent = weeklyProgram
-                        .map(entry => entry.day + '|' + entry.title + '|' + entry.location + '|' + entry.time)
-                        .join('\n');
+                    // Build complete program content
+                    let progContent = '';
+                    
+                    // Add standard entries first (if any)
+                    if (allWeeklyPrograms['standard']) {
+                        Object.entries(allWeeklyPrograms['standard']).forEach(([day, data]) => {
+                            if (data.title || data.location || data.time) {
+                                progContent += day + '|' + data.title + '|' + data.location + '|' + data.time + '\n';
+                            }
+                        });
+                    }
+                    
+                    // Add all week-specific entries
+                    Object.entries(allWeeklyPrograms).forEach(([weekKey, weekData]) => {
+                        if (weekKey !== 'standard') {
+                            Object.entries(weekData).forEach(([day, data]) => {
+                                if (data.title || data.location || data.time) {
+                                    progContent += weekKey + ' | ' + day + ' | ' + 
+                                                 (data.title || '-') + ' | ' + 
+                                                 (data.location || '-') + ' | ' + 
+                                                 (data.time || '-') + '\n';
+                                }
+                            });
+                        }
+                    });
 
+                    // Get current file SHA
                     const progRes = await fetch('https://api.github.com/repos/' + githubConfig.owner + '/' + githubConfig.repo + '/contents/wochenprogramm.txt', {
                         headers: { Authorization: 'token ' + githubConfig.token }
                     });
@@ -134,6 +272,7 @@
                         progSha = data.sha;
                     }
 
+                    // Save program
                     await fetch('https://api.github.com/repos/' + githubConfig.owner + '/' + githubConfig.repo + '/contents/wochenprogramm.txt', {
                         method: 'PUT',
                         headers: { 
@@ -141,12 +280,13 @@
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            message: 'Update wochenprogramm from admin',
-                            content: btoa(progContent),
+                            message: 'Update ' + currentWeek.weekKey + ' from admin dashboard',
+                            content: btoa(progContent.trim()),
                             sha: progSha || undefined
                         })
                     });
 
+                    // Save event config
                     const eventContent = [
                         'aktiv: ' + (eventConfig.active ? 'ja' : 'nein'),
                         'bild: ' + eventConfig.image,
@@ -177,24 +317,31 @@
                         })
                     });
 
-                    showStatus('✅ Erfolgreich gespeichert!', 'success');
+                    showStatus('✅ ' + currentWeek.displayText + ' erfolgreich gespeichert!', 'success');
                 } catch (error) {
+                    console.error('Save error:', error);
                     showStatus('❌ Fehler beim Speichern', 'error');
                 } finally {
                     setIsSaving(false);
                 }
             };
 
+            const currentWeekData = getCurrentWeekData();
+
+            // Quick jump to specific week
+            const jumpToCurrentWeek = () => setWeekOffset(0);
+
+            // Login Screen
             if (!isLoggedIn) {
                 return React.createElement('div', { 
-                    className: "min-h-screen bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center p-4" 
+                    className: "min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-amber-50 flex items-center justify-center p-4" 
                 },
                     React.createElement('div', { 
-                        className: "bg-white rounded-3xl shadow-2xl p-12 w-full max-w-md" 
+                        className: "bg-white rounded-3xl shadow-2xl p-12 w-full max-w-md border border-red-100" 
                     },
                         React.createElement('div', { className: "text-center mb-8" },
                             React.createElement('div', { 
-                                className: "w-20 h-20 bg-red-600 rounded-2xl mx-auto mb-6 flex items-center justify-center" 
+                                className: "w-20 h-20 bg-red-600 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-xl" 
                             },
                                 React.createElement('span', { 
                                     className: "text-white font-black text-2xl" 
@@ -215,7 +362,7 @@
                                 type: "password",
                                 value: password,
                                 onChange: (e) => setPassword(e.target.value),
-                                className: "w-full px-6 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold text-center text-xl focus:border-red-600 outline-none transition-colors",
+                                className: "w-full px-6 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold text-center text-xl focus:border-red-600 outline-none transition-all",
                                 placeholder: "Passwort eingeben"
                             }),
                             loginError && React.createElement('p', { 
@@ -223,105 +370,164 @@
                             }, "❌ Falsches Passwort"),
                             React.createElement('button', { 
                                 type: "submit",
-                                className: "w-full bg-red-600 text-white font-black py-4 rounded-2xl hover:bg-red-700 transition-colors uppercase tracking-wide"
+                                className: "w-full bg-red-600 text-white font-black py-4 rounded-2xl hover:bg-red-700 transition-all uppercase tracking-wide shadow-lg"
                             }, "Einloggen")
                         )
                     )
                 );
             }
 
+            // Main Admin Interface
             return React.createElement('div', { className: "min-h-screen bg-slate-50" },
+                // Status Message
                 status && React.createElement('div', { 
-                    className: 'fixed top-4 right-4 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-xl font-bold ' +
-                        (status.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white')
+                    className: 'fixed top-4 right-4 z-50 flex items-center gap-3 px-8 py-4 rounded-2xl shadow-2xl font-bold border-2 ' +
+                        (status.type === 'success' ? 'bg-green-600 text-white border-green-400' : 'bg-red-600 text-white border-red-400')
                 }, status.message),
 
-                React.createElement('header', { className: "bg-white border-b border-slate-200 px-6 py-4" },
-                    React.createElement('div', { className: "max-w-6xl mx-auto flex items-center justify-between" },
-                        React.createElement('div', { className: "flex items-center gap-4" },
+                // Header
+                React.createElement('header', { className: "bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-40 shadow-sm" },
+                    React.createElement('div', { className: "max-w-7xl mx-auto flex items-center justify-between" },
+                        React.createElement('div', { className: "flex items-center gap-6" },
                             React.createElement('div', { 
-                                className: "w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center" 
+                                className: "w-14 h-14 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg" 
                             },
-                                React.createElement('span', { className: "text-white font-black" }, "DRK")
+                                React.createElement('span', { className: "text-white font-black text-lg" }, "DRK")
                             ),
                             React.createElement('div', null,
                                 React.createElement('h1', { 
-                                    className: "text-2xl font-black text-slate-900 tracking-tight" 
+                                    className: "text-3xl font-black text-slate-900 tracking-tight" 
                                 }, "🏥 Admin Dashboard"),
                                 React.createElement('p', { 
-                                    className: "text-slate-500 font-medium text-sm" 
-                                }, "DRK Melm Verwaltung")
+                                    className: "text-slate-500 font-bold text-sm mt-1" 
+                                }, "DRK Melm • Wochenprogramm Verwaltung")
                             )
                         ),
                         React.createElement('button', {
                             onClick: () => setIsLoggedIn(false),
-                            className: "px-4 py-2 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-colors"
+                            className: "flex items-center gap-2 px-6 py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-all shadow-lg"
                         }, "🚪 Logout")
                     )
                 ),
 
-                React.createElement('main', { className: "max-w-6xl mx-auto p-6 space-y-8" },
-                    React.createElement('div', { className: "flex justify-end" },
-                        React.createElement('button', {
-                            onClick: saveData,
-                            disabled: isSaving,
-                            className: "px-8 py-4 bg-red-600 text-white font-black rounded-2xl hover:bg-red-700 transition-colors disabled:opacity-50 shadow-lg"
-                        }, isSaving ? '⏳ Speichert...' : '💾 Änderungen Speichern')
+                // Main Content
+                React.createElement('main', { className: "max-w-7xl mx-auto p-8 space-y-8" },
+                    // Week Navigation Bar
+                    React.createElement('div', { className: "bg-white rounded-3xl p-6 shadow-lg border border-slate-200" },
+                        React.createElement('div', { className: "flex items-center justify-between" },
+                            // Navigation Controls
+                            React.createElement('div', { className: "flex items-center gap-4" },
+                                React.createElement('button', {
+                                    onClick: () => setWeekOffset(prev => prev - 1),
+                                    className: "week-nav-btn flex items-center gap-2 px-6 py-3 bg-slate-100 hover:bg-red-50 border-2 border-slate-200 hover:border-red-300 rounded-xl font-bold text-slate-700 hover:text-red-700 transition-all"
+                                }, "⬅️ Vorherige"),
+                                
+                                React.createElement('div', { className: "text-center px-8 py-4 bg-red-600 text-white rounded-2xl shadow-xl border-2 border-red-500" },
+                                    React.createElement('div', { className: "text-3xl font-black leading-none" }, currentWeek.displayText),
+                                    React.createElement('div', { className: "text-sm opacity-90 mt-2 font-medium" }, currentWeek.dateRange)
+                                ),
+                                
+                                React.createElement('button', {
+                                    onClick: () => setWeekOffset(prev => prev + 1),
+                                    className: "week-nav-btn flex items-center gap-2 px-6 py-3 bg-slate-100 hover:bg-red-50 border-2 border-slate-200 hover:border-red-300 rounded-xl font-bold text-slate-700 hover:text-red-700 transition-all"
+                                }, "Nächste ➡️")
+                            ),
+                            
+                            // Action Buttons
+                            React.createElement('div', { className: "flex items-center gap-4" },
+                                weekOffset !== 0 && React.createElement('button', {
+                                    onClick: jumpToCurrentWeek,
+                                    className: "px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-xl transition-all border border-blue-300"
+                                }, "📅 Aktuelle Woche"),
+                                
+                                React.createElement('button', {
+                                    onClick: saveData,
+                                    disabled: isSaving || isLoading,
+                                    className: "flex items-center gap-3 px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-black rounded-2xl transition-all disabled:opacity-50 shadow-xl border-2 border-green-500"
+                                }, 
+                                    isSaving ? "⏳ Speichert..." : "💾 Speichern"
+                                )
+                            )
+                        )
                     ),
 
-                    React.createElement('div', { className: "grid grid-cols-1 lg:grid-cols-3 gap-8" },
+                    React.createElement('div', { className: "grid grid-cols-1 xl:grid-cols-4 gap-8" },
+                        // Weekly Program - Takes 3/4 width
                         React.createElement('div', { 
-                            className: "lg:col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-slate-200" 
+                            className: "xl:col-span-3 bg-white rounded-3xl p-8 shadow-lg border border-slate-200" 
                         },
-                            React.createElement('h2', { 
-                                className: "text-3xl font-black text-slate-900 mb-8" 
-                            }, "📅 Wochenprogramm (Standard)"),
+                            React.createElement('div', { className: "flex items-center justify-between mb-8" },
+                                React.createElement('h2', { 
+                                    className: "text-3xl font-black text-slate-900 flex items-center gap-3" 
+                                }, 
+                                    "📅 Wochenprogramm",
+                                    React.createElement('span', { 
+                                        className: "text-lg font-bold text-red-600 bg-red-50 px-3 py-1 rounded-lg" 
+                                    }, currentWeek.displayText)
+                                ),
+                                isLoading && React.createElement('div', { 
+                                    className: "flex items-center gap-2 text-slate-500 font-medium bg-slate-100 px-4 py-2 rounded-xl" 
+                                }, "🔄 Lade Daten...")
+                            ),
                             
                             React.createElement('div', { className: "space-y-6" },
-                                weeklyProgram.map((entry, index) =>
-                                    React.createElement('div', { 
+                                currentWeekData.map((entry, index) => {
+                                    const dateInfo = currentWeek.weekDates[index];
+                                    const isToday = dateInfo.date.toDateString() === new Date().toDateString();
+                                    
+                                    return React.createElement('div', { 
                                         key: entry.day, 
-                                        className: "bg-slate-50 rounded-2xl p-6 border border-slate-100" 
+                                        className: "bg-slate-50 rounded-2xl p-6 border-2 " + (isToday ? "border-orange-300 bg-orange-50" : "border-slate-100")
                                     },
-                                        React.createElement('div', { className: "flex items-center gap-3 mb-4" },
-                                            React.createElement('span', { 
-                                                className: "text-2xl font-black text-slate-900" 
-                                            }, entry.day),
-                                            React.createElement('span', { 
-                                                className: "text-lg font-bold text-slate-700" 
-                                            }, ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'][index])
+                                        // Day Header with Date
+                                        React.createElement('div', { className: "flex items-center justify-between mb-6" },
+                                            React.createElement('div', { className: "flex items-center gap-4" },
+                                                React.createElement('div', { 
+                                                    className: "w-16 h-16 rounded-2xl flex items-center justify-center font-black text-2xl " +
+                                                    (isToday ? "bg-orange-500 text-white" : "bg-slate-200 text-slate-700")
+                                                }, entry.day),
+                                                React.createElement('div', null,
+                                                    React.createElement('div', { 
+                                                        className: "text-xl font-black " + (isToday ? "text-orange-800" : "text-slate-900")
+                                                    }, dateInfo.dayName),
+                                                    React.createElement('div', { 
+                                                        className: "text-sm font-bold " + (isToday ? "text-orange-600" : "text-slate-500")
+                                                    }, dateInfo.dateString),
+                                                    isToday && React.createElement('div', { 
+                                                        className: "text-xs font-bold text-orange-600 bg-orange-200 px-2 py-1 rounded mt-1"
+                                                    }, "HEUTE")
+                                                )
+                                            ),
+                                            (entry.title || entry.location || entry.time) && React.createElement('div', { 
+                                                className: "text-xs font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full"
+                                            }, "✅ Geplant")
                                         ),
                                         
-                                        React.createElement('div', { className: "grid grid-cols-12 gap-4" },
-                                            React.createElement('div', { className: "col-span-5" },
+                                        // Input Fields Grid
+                                        React.createElement('div', { className: "grid grid-cols-12 gap-6" },
+                                            // Activity - 6 columns
+                                            React.createElement('div', { className: "col-span-6" },
                                                 React.createElement('label', { 
-                                                    className: "block text-sm font-bold text-slate-600 mb-2" 
-                                                }, "Aktivität"),
+                                                    className: "block text-sm font-black text-slate-600 mb-2 uppercase tracking-wider" 
+                                                }, "🎯 Aktivität"),
                                                 React.createElement('input', {
                                                     type: "text",
                                                     value: entry.title,
-                                                    onChange: (e) => {
-                                                        const newProgram = [...weeklyProgram];
-                                                        newProgram[index].title = e.target.value;
-                                                        setWeeklyProgram(newProgram);
-                                                    },
+                                                    onChange: (e) => updateActivity(index, 'title', e.target.value),
                                                     placeholder: "Was findet statt?",
-                                                    className: "w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-medium focus:border-red-600 outline-none transition-colors"
+                                                    className: "w-full px-4 py-4 border-2 border-slate-200 rounded-xl font-medium text-lg focus:border-red-500 focus:ring-2 focus:ring-red-200 outline-none transition-all"
                                                 })
                                             ),
                                             
+                                            // Location - 4 columns  
                                             React.createElement('div', { className: "col-span-4" },
                                                 React.createElement('label', { 
-                                                    className: "block text-sm font-bold text-slate-600 mb-2" 
-                                                }, "Ort"),
+                                                    className: "block text-sm font-black text-slate-600 mb-2 uppercase tracking-wider" 
+                                                }, "📍 Ort"),
                                                 React.createElement('select', {
                                                     value: entry.location,
-                                                    onChange: (e) => {
-                                                        const newProgram = [...weeklyProgram];
-                                                        newProgram[index].location = e.target.value;
-                                                        setWeeklyProgram(newProgram);
-                                                    },
-                                                    className: "w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-medium focus:border-red-600 outline-none transition-colors"
+                                                    onChange: (e) => updateActivity(index, 'location', e.target.value),
+                                                    className: "w-full px-4 py-4 border-2 border-slate-200 rounded-xl font-medium text-lg focus:border-red-500 focus:ring-2 focus:ring-red-200 outline-none transition-all"
                                                 },
                                                     React.createElement('option', { value: "" }, "Ort wählen..."),
                                                     LOCATIONS.map(location =>
@@ -333,87 +539,87 @@
                                                 )
                                             ),
                                             
-                                            React.createElement('div', { className: "col-span-3" },
+                                            // Time - 2 columns
+                                            React.createElement('div', { className: "col-span-2" },
                                                 React.createElement('label', { 
-                                                    className: "block text-sm font-bold text-slate-600 mb-2" 
-                                                }, "Uhrzeit"),
+                                                    className: "block text-sm font-black text-slate-600 mb-2 uppercase tracking-wider" 
+                                                }, "🕐 Zeit"),
                                                 React.createElement('input', {
                                                     type: "time",
                                                     value: entry.time,
-                                                    onChange: (e) => {
-                                                        const newProgram = [...weeklyProgram];
-                                                        newProgram[index].time = e.target.value;
-                                                        setWeeklyProgram(newProgram);
-                                                    },
-                                                    className: "w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-medium focus:border-red-600 outline-none transition-colors"
+                                                    onChange: (e) => updateActivity(index, 'time', e.target.value),
+                                                    className: "w-full px-4 py-4 border-2 border-slate-200 rounded-xl font-medium text-lg focus:border-red-500 focus:ring-2 focus:ring-red-200 outline-none transition-all"
                                                 })
                                             )
                                         )
-                                    )
-                                )
+                                    );
+                                })
                             )
                         ),
 
+                        // Event Config Sidebar - Takes 1/4 width
                         React.createElement('div', { 
-                            className: "bg-slate-900 text-white rounded-3xl p-8" 
+                            className: "bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-3xl p-8 h-fit sticky top-32 shadow-2xl border border-slate-700" 
                         },
                             React.createElement('h2', { 
-                                className: "text-xl font-black mb-6" 
-                            }, "🎉 Event-Modus"),
+                                className: "text-2xl font-black mb-8 flex items-center gap-3" 
+                            }, "🎉", React.createElement('span', null, "Event-Modus")),
                             
-                            React.createElement('div', { className: "mb-6" },
+                            // Status Toggle
+                            React.createElement('div', { className: "mb-8" },
                                 React.createElement('label', { 
-                                    className: "text-sm font-bold text-white/70 block mb-2" 
+                                    className: "text-sm font-bold text-white/70 block mb-3 uppercase tracking-wider" 
                                 }, "Status"),
                                 React.createElement('div', { 
-                                    className: "grid grid-cols-2 gap-2 bg-white/10 p-1 rounded-xl" 
+                                    className: "grid grid-cols-2 gap-2 bg-white/10 p-2 rounded-xl border border-white/20" 
                                 },
                                     React.createElement('button', {
                                         onClick: () => setEventConfig(prev => ({ ...prev, active: true })),
-                                        className: 'py-3 px-4 rounded-lg font-bold text-sm transition-colors ' +
-                                            (eventConfig.active ? 'bg-green-600 text-white' : 'text-white/50 hover:text-white')
-                                    }, "✅ Aktiv"),
+                                        className: 'py-4 px-4 rounded-lg font-black text-sm transition-all ' +
+                                            (eventConfig.active ? 'bg-green-600 text-white shadow-lg' : 'text-white/50 hover:text-white hover:bg-white/10')
+                                    }, "✅ AKTIV"),
                                     React.createElement('button', {
                                         onClick: () => setEventConfig(prev => ({ ...prev, active: false })),
-                                        className: 'py-3 px-4 rounded-lg font-bold text-sm transition-colors ' +
-                                            (!eventConfig.active ? 'bg-red-600 text-white' : 'text-white/50 hover:text-white')
-                                    }, "❌ Aus")
+                                        className: 'py-4 px-4 rounded-lg font-black text-sm transition-all ' +
+                                            (!eventConfig.active ? 'bg-red-600 text-white shadow-lg' : 'text-white/50 hover:text-white hover:bg-white/10')
+                                    }, "❌ AUS")
                                 )
                             ),
 
-                            React.createElement('div', { className: "space-y-4" },
+                            // Event Configuration
+                            React.createElement('div', { className: "space-y-6" },
                                 React.createElement('div', null,
                                     React.createElement('label', { 
-                                        className: "text-sm font-bold text-white/70 block mb-2" 
+                                        className: "text-sm font-bold text-white/70 block mb-3 uppercase tracking-wider" 
                                     }, "🖼️ Bilddatei"),
                                     React.createElement('input', {
                                         type: "text",
                                         value: eventConfig.image,
                                         onChange: (e) => setEventConfig(prev => ({ ...prev, image: e.target.value })),
                                         placeholder: "Faschingsparty.jpg",
-                                        className: "w-full px-3 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:border-white/40 outline-none"
+                                        className: "w-full px-4 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-white placeholder-white/50 focus:border-white/40 focus:bg-white/20 outline-none transition-all"
                                     })
                                 ),
                                 React.createElement('div', null,
                                     React.createElement('label', { 
-                                        className: "text-sm font-bold text-white/70 block mb-2" 
+                                        className: "text-sm font-bold text-white/70 block mb-3 uppercase tracking-wider" 
                                     }, "🕐 Start"),
                                     React.createElement('input', {
                                         type: "datetime-local",
                                         value: eventConfig.start,
                                         onChange: (e) => setEventConfig(prev => ({ ...prev, start: e.target.value })),
-                                        className: "w-full px-3 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:border-white/40 outline-none"
+                                        className: "w-full px-4 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-white focus:border-white/40 focus:bg-white/20 outline-none transition-all"
                                     })
                                 ),
                                 React.createElement('div', null,
                                     React.createElement('label', { 
-                                        className: "text-sm font-bold text-white/70 block mb-2" 
+                                        className: "text-sm font-bold text-white/70 block mb-3 uppercase tracking-wider" 
                                     }, "🕕 Ende"),
                                     React.createElement('input', {
                                         type: "datetime-local",
                                         value: eventConfig.end,
                                         onChange: (e) => setEventConfig(prev => ({ ...prev, end: e.target.value })),
-                                        className: "w-full px-3 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:border-white/40 outline-none"
+                                        className: "w-full px-4 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-white focus:border-white/40 focus:bg-white/20 outline-none transition-all"
                                     })
                                 )
                             )
