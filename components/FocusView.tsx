@@ -1,102 +1,82 @@
-import React from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { useTime } from '../hooks/useTime';
-import { UrgentMessage, Meal, SlideshowData } from '../types';
-import Slideshow from './Slideshow';
-import MenuPlanView from './MenuPlanView';
+import React, { useState, useEffect } from 'react';
+import { AppData, Meal } from '../types';
 
-// Props for the main component
 interface FocusViewProps {
-  urgentMessage: UrgentMessage;
-  meals: Meal[];
-  slideshow: SlideshowData;
+  appData: AppData;
 }
 
-// Reusable container with animation
-interface ContentContainerProps {
-    children?: React.ReactNode;
-    imageUrl: string;
-}
-export const ContentContainer: React.FC<ContentContainerProps> = ({ children, imageUrl }) => (
-    <motion.div
-      className="absolute inset-0 bg-cover bg-center"
-      style={{ backgroundImage: `url(${imageUrl})` }}
-      initial={{ opacity: 0, scale: 1.02 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ duration: 1, ease: "easeInOut" }}
-    >
-      {children}
-    </motion.div>
-);
+const FocusView: React.FC<FocusViewProps> = ({ appData }) => {
+  const [currentTime, setCurrentTime] = useState(new Date());
 
-// --- Sub-components for cleaner animation logic ---
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-const UrgentMessageView: React.FC<{ message: UrgentMessage }> = ({ message }) => (
-    <ContentContainer imageUrl={message.imageUrl}>
-        <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center p-8">
-            <h1 className="font-black text-red-500 drop-shadow-lg" style={{ fontSize: 'clamp(1.8rem, 5vmin, 3.5rem)' }}>{message.title}</h1>
-            <p className="mt-[1vh] drop-shadow-lg" style={{ fontSize: 'clamp(1.1rem, 3vmin, 2rem)' }}>{message.text}</p>
-        </div>
-    </ContentContainer>
-);
+  const hours = currentTime.getHours();
 
-const MealView: React.FC<{ meal: Meal }> = ({ meal }) => (
-    <ContentContainer imageUrl={meal.imageUrl} />
-);
-
-// --- Main Component ---
-
-const FocusView: React.FC<FocusViewProps> = ({ urgentMessage, meals, slideshow }) => {
-  const { hour, minute } = useTime();
-
-  const isTimeActive = (activeUntil: string): boolean => {
-      if (!activeUntil || !activeUntil.includes(':')) return false;
-      const [endHour, endMinute] = activeUntil.split(':').map(Number);
-      const now = new Date();
-      const endTime = new Date();
-      endTime.setHours(endHour, endMinute, 0, 0);
-      return now <= endTime;
+  // Mahlzeiten-Logik repariert
+  const getCurrentMeal = (): Meal | undefined => {
+    if (hours >= 6 && hours < 10) return appData.meals.find(m => m.type === 'breakfast');
+    if (hours >= 11 && hours < 14) return appData.meals.find(m => m.type === 'lunch');
+    if (hours >= 17 && hours < 21) return appData.meals.find(m => m.type === 'dinner');
+    return undefined;
   };
 
-  const getCurrentMeal = (): Meal | null => {
-    const currentTime = hour + minute / 60;
-    for (const meal of meals) {
-      const startTime = meal.startTime.hour + meal.startTime.minute / 60;
-      const endTime = meal.endTime.hour + meal.endTime.minute / 60;
-      if (currentTime >= startTime && currentTime <= endTime) {
-        return meal;
-      }
-    }
-    return null;
-  };
-  
-  const renderContent = () => {
-    // Prio 1: Urgent Message
-    if (urgentMessage.active && isTimeActive(urgentMessage.activeUntil)) {
-      return <UrgentMessageView key="urgent" message={urgentMessage} />;
-    }
+  const activeMeal = getCurrentMeal();
 
-    // Prio 2: Meal Time (Corrected Priority)
-    const currentMeal = getCurrentMeal();
-    if (currentMeal) {
-      return <MealView key={currentMeal.name} meal={currentMeal} />;
-    }
-
-    // Prio 3: Active Slideshow
-    if (slideshow.active && isTimeActive(slideshow.activeUntil)) {
-      return <Slideshow key="slideshow" images={slideshow.images} />;
-    }
-    
-    // Prio 4: Fallback Menu Plan
-    return <MenuPlanView key="menu-plan" />;
-  };
-  
   return (
-    <div className="w-full h-full relative rounded-3xl overflow-hidden">
-        <AnimatePresence mode="wait">
-            {renderContent()}
-        </AnimatePresence>
+    <div className="relative w-full h-full bg-black overflow-hidden flex flex-col">
+      
+      {/* 1. DAS LOGO (Immer sichtbar, oben fixiert) */}
+      <div className="absolute top-8 left-8 z-[60] bg-white/10 p-4 rounded-xl backdrop-blur-md border border-white/20">
+        <img src="/logo.png" alt="Logo" className="h-20 w-auto object-contain" />
+      </div>
+
+      {/* 2. EILMELDUNG (Höchste Priorität) */}
+      {appData.urgentMessage.active ? (
+        <div className="absolute inset-0 z-[100] bg-red-600 flex flex-col items-center justify-center p-10 text-center animate-pulse">
+          <h1 className="text-8xl font-black text-white mb-8 tracking-tighter">EILMELDUNG</h1>
+          <div className="h-2 w-1/2 bg-white mb-8"></div>
+          <p className="text-6xl font-bold text-white leading-tight">
+            {appData.urgentMessage.content}
+          </p>
+        </div>
+      ) : null}
+
+      {/* 3. SPEISEPLAN (Zweite Priorität) */}
+      {!appData.urgentMessage.active && activeMeal ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 bg-gradient-to-b from-gray-900 to-black">
+          <h2 className="text-5xl font-bold text-orange-500 mb-6 uppercase tracking-widest">
+            {activeMeal.type === 'breakfast' ? 'Frühstück' : activeMeal.type === 'lunch' ? 'Mittagessen' : 'Abendessen'}
+          </h2>
+          <div className="relative w-full max-w-5xl aspect-video rounded-3xl overflow-hidden shadow-[0_0_100px_rgba(255,165,0,0.2)] border-4 border-orange-500/30">
+            <img 
+              src={activeMeal.image} 
+              alt="Speiseplan" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {/* 4. SLIDESHOW (Erscheint nur, wenn keine Eilmeldung und keine Mahlzeit-Zeit ist) */}
+      {!appData.urgentMessage.active && !activeMeal && (
+        <div className="absolute inset-0 z-0">
+          {/* Hier wird deine Slideshow-Komponente gerendert */}
+          <div className="w-full h-full flex items-center justify-center bg-gray-900">
+             <p className="text-3xl text-gray-500">Slideshow aktiv...</p>
+             {/* <Slideshow images={appData.slideshow.images} /> */}
+          </div>
+        </div>
+      )}
+
+      {/* 5. UHRZEIT UNTEN RECHTS */}
+      <div className="absolute bottom-8 right-8 z-[60] text-right">
+        <p className="text-6xl font-mono font-bold text-white drop-shadow-lg">
+          {currentTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      </div>
     </div>
   );
 };
