@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AppData, SlideshowImage, SlideshowData } from '../../types';
+import { AppData, SlideshowImage } from '../../types';
 import WeeklyScheduleEditor from './WeeklyScheduleEditor';
 import { v4 as uuidv4 } from 'uuid';
-import { Upload, Trash2, Image as ImageIcon, Power, Clock } from 'lucide-react';
+import { Upload, Trash2, Image as ImageIcon, Clock } from 'lucide-react';
 
 interface AdminPanelProps {
   appData: AppData;
@@ -20,8 +21,6 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ appData, setAppData }) => {
-    const [urgentMessage, setUrgentMessage] = useState(appData.urgentMessage);
-    const [slideshowConfig, setSlideshowConfig] = useState(appData.slideshow);
     const [newSlideCaption, setNewSlideCaption] = useState('');
     const [newSlideImage, setNewSlideImage] = useState<File | null>(null);
 
@@ -30,17 +29,38 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ appData, setAppData }) => {
         const isCheckbox = type === 'checkbox';
         const updatedValue = isCheckbox ? (e.target as HTMLInputElement).checked : value;
 
-        const updatedMessage = { ...urgentMessage, [name]: updatedValue };
-        setUrgentMessage(updatedMessage);
-        setAppData(prev => ({ ...prev, urgentMessage: updatedMessage }));
+        setAppData(prev => {
+            const newUrgentMessage = {
+                ...prev.urgentMessage,
+                [name]: updatedValue
+            };
+
+            // If activating and the stored end time is in the past, reset it to the end of the day.
+            if (name === 'active' && updatedValue === true) {
+                const [endHour, endMinute] = newUrgentMessage.activeUntil.split(':').map(Number);
+                const now = new Date();
+                if (now.getHours() > endHour || (now.getHours() === endHour && now.getMinutes() > endMinute)) {
+                    newUrgentMessage.activeUntil = '23:59';
+                }
+            }
+
+            return { 
+                ...prev, 
+                urgentMessage: newUrgentMessage
+            };
+        });
     };
 
     const handleUrgentImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const base64 = await fileToBase64(e.target.files[0]);
-            const updatedMessage = { ...urgentMessage, imageUrl: base64 };
-            setUrgentMessage(updatedMessage);
-            setAppData(prev => ({ ...prev, urgentMessage: updatedMessage }));
+            setAppData(prev => ({ 
+                ...prev, 
+                urgentMessage: {
+                    ...prev.urgentMessage,
+                    imageUrl: base64
+                } 
+            }));
         }
     };
 
@@ -49,9 +69,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ appData, setAppData }) => {
         const isCheckbox = type === 'checkbox';
         const updatedValue = isCheckbox ? (e.target as HTMLInputElement).checked : value;
         
-        const updatedConfig = { ...slideshowConfig, [name]: updatedValue };
-        setSlideshowConfig(updatedConfig);
-        setAppData(prev => ({ ...prev, slideshow: updatedConfig }));
+        setAppData(prev => {
+            const newSlideshow = {
+                ...prev.slideshow,
+                [name]: updatedValue
+            };
+
+            // If activating and the stored end time is in the past, reset it to the end of the day.
+            if (name === 'active' && updatedValue === true) {
+                const [endHour, endMinute] = newSlideshow.activeUntil.split(':').map(Number);
+                const now = new Date();
+                if (now.getHours() > endHour || (now.getHours() === endHour && now.getMinutes() > endMinute)) {
+                    newSlideshow.activeUntil = '23:59';
+                }
+            }
+
+            return {
+                ...prev,
+                slideshow: newSlideshow
+            };
+        });
     };
     
     const handleAddSlide = async (e: React.FormEvent) => {
@@ -69,9 +106,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ appData, setAppData }) => {
             } 
         }));
         
-        // Update local state to re-render
-        setSlideshowConfig(prev => ({...prev, images: [...prev.images, newSlide]}));
-
         setNewSlideCaption('');
         setNewSlideImage(null);
         // Reset file input
@@ -80,10 +114,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ appData, setAppData }) => {
     };
 
     const handleDeleteSlide = (id: string) => {
-        const updatedImages = slideshowConfig.images.filter(s => s.id !== id);
-        const updatedConfig = { ...slideshowConfig, images: updatedImages };
-        setSlideshowConfig(updatedConfig);
-        setAppData(prev => ({ ...prev, slideshow: updatedConfig }));
+        setAppData(prev => {
+            const updatedImages = prev.slideshow.images.filter(s => s.id !== id);
+            return {
+                ...prev,
+                slideshow: {
+                    ...prev.slideshow,
+                    images: updatedImages,
+                }
+            };
+        });
     };
 
     return (
@@ -114,27 +154,27 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ appData, setAppData }) => {
                             <h2 className="text-2xl font-bold mb-4 text-gray-800">Eilmeldung</h2>
                             <div className="flex items-center space-x-4 mb-4">
                                 <label className="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="active" checked={urgentMessage.active} onChange={handleUrgentMessageChange} className="sr-only peer" />
+                                    <input type="checkbox" name="active" checked={appData.urgentMessage.active} onChange={handleUrgentMessageChange} className="sr-only peer" />
                                     <div className="w-14 h-8 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-red-600"></div>
                                 </label>
-                                <span className={`text-lg font-medium transition-colors ${urgentMessage.active ? 'text-red-600' : 'text-gray-700'}`}>{urgentMessage.active ? 'Aktiviert' : 'Deaktiviert'}</span>
+                                <span className={`text-lg font-medium transition-colors ${appData.urgentMessage.active ? 'text-red-600' : 'text-gray-700'}`}>{appData.urgentMessage.active ? 'Aktiviert' : 'Deaktiviert'}</span>
                             </div>
-                            {urgentMessage.active && (
+                            {appData.urgentMessage.active && (
                                 <div className="space-y-4 animate-fade-in">
-                                    <input type="text" name="title" value={urgentMessage.title} onChange={handleUrgentMessageChange} placeholder="Titel der Meldung" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 transition" />
-                                    <textarea name="text" value={urgentMessage.text} onChange={handleUrgentMessageChange} placeholder="Text der Meldung" className="w-full p-3 border border-gray-300 rounded-lg h-24 focus:ring-2 focus:ring-red-500 transition"></textarea>
+                                    <input type="text" name="title" value={appData.urgentMessage.title} onChange={handleUrgentMessageChange} placeholder="Titel der Meldung" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 transition" />
+                                    <textarea name="text" value={appData.urgentMessage.text} onChange={handleUrgentMessageChange} placeholder="Text der Meldung" className="w-full p-3 border border-gray-300 rounded-lg h-24 focus:ring-2 focus:ring-red-500 transition"></textarea>
                                      <div className="relative">
                                         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                             <Clock size={18} className="text-gray-400" />
                                         </div>
-                                        <input type="time" name="activeUntil" value={urgentMessage.activeUntil} onChange={handleUrgentMessageChange} className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 transition bg-gray-50" />
+                                        <input type="time" name="activeUntil" value={appData.urgentMessage.activeUntil} onChange={handleUrgentMessageChange} className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 transition bg-gray-50" />
                                     </div>
                                     <label htmlFor="urgent-image-upload" className="w-full cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-3 px-4 rounded-lg flex items-center justify-center space-x-2 transition">
                                         <Upload size={20} />
                                         <span>Hintergrundbild ändern</span>
                                     </label>
                                     <input id="urgent-image-upload" type="file" accept="image/*" onChange={handleUrgentImageUpload} className="hidden" />
-                                    {urgentMessage.imageUrl && <img src={urgentMessage.imageUrl} alt="Vorschau" className="mt-2 rounded-lg object-cover w-full h-32"/>}
+                                    {appData.urgentMessage.imageUrl && <img src={appData.urgentMessage.imageUrl} alt="Vorschau" className="mt-2 rounded-lg object-cover w-full h-32"/>}
                                 </div>
                             )}
                         </section>
@@ -142,18 +182,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ appData, setAppData }) => {
                             <h2 className="text-2xl font-bold mb-4 text-gray-800">Diashow Steuerung</h2>
                             <div className="flex items-center space-x-4 mb-4">
                                 <label className="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="active" checked={slideshowConfig.active} onChange={handleSlideshowConfigChange} className="sr-only peer" />
+                                    <input type="checkbox" name="active" checked={appData.slideshow.active} onChange={handleSlideshowConfigChange} className="sr-only peer" />
                                     <div className="w-14 h-8 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
                                 </label>
-                                <span className={`text-lg font-medium transition-colors ${slideshowConfig.active ? 'text-blue-600' : 'text-gray-700'}`}>{slideshowConfig.active ? 'Aktiviert' : 'Deaktiviert'}</span>
+                                <span className={`text-lg font-medium transition-colors ${appData.slideshow.active ? 'text-blue-600' : 'text-gray-700'}`}>{appData.slideshow.active ? 'Aktiviert' : 'Deaktiviert'}</span>
                             </div>
-                            {slideshowConfig.active && (
+                            {appData.slideshow.active && (
                                 <div className="space-y-4 animate-fade-in">
                                      <div className="relative">
                                         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                             <Clock size={18} className="text-gray-400" />
                                         </div>
-                                        <input type="time" name="activeUntil" value={slideshowConfig.activeUntil} onChange={handleSlideshowConfigChange} className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition bg-gray-50" />
+                                        <input type="time" name="activeUntil" value={appData.slideshow.activeUntil} onChange={handleSlideshowConfigChange} className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition bg-gray-50" />
                                     </div>
                                 </div>
                             )}
@@ -161,7 +201,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ appData, setAppData }) => {
                         <section className="bg-white p-6 rounded-xl shadow-md">
                             <h2 className="text-2xl font-bold mb-4 text-gray-800">Diashow Bilder</h2>
                             <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
-                            {slideshowConfig.images.map(slide => (
+                            {appData.slideshow.images.map(slide => (
                                 <div key={slide.id} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
                                     <div className="flex items-center space-x-3 min-w-0">
                                         <img src={slide.url} alt={slide.caption} className="w-12 h-12 rounded-md object-cover flex-shrink-0"/>

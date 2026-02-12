@@ -50,7 +50,7 @@ export interface AppData {
   locations: string[];
 }
 
-export type WeatherType = 'sunny' | 'rainy' | 'cloudy' | 'stormy' | 'snow';
+export type WeatherType = 'sunny' | 'rainy' | 'cloudy' | 'stormy';
 
 export interface ForecastDay {
   day: string;
