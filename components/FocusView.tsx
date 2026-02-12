@@ -72,23 +72,25 @@ const FocusView: React.FC<FocusViewProps> = ({ urgentMessage, meals, slideshow }
   };
   
   const renderContent = () => {
-    // Prio 1: Urgent Message
+    // KORRIGIERTE PRIORITÄTSLOGIK:
+    
+    // Prio 1: Eilmeldung (höchste Priorität)
     if (urgentMessage.active && isTimeActive(urgentMessage.activeUntil)) {
       return <UrgentMessageView key="urgent" message={urgentMessage} />;
     }
 
-    // Prio 2: Meal Time (Corrected Priority)
+    // Prio 2: Diashow (überschreibt Mahlzeiten)
+    if (slideshow.active && isTimeActive(slideshow.activeUntil)) {
+      return <Slideshow key="slideshow" images={slideshow.images} />;
+    }
+
+    // Prio 3: Mahlzeiten (nur wenn keine Diashow/Eilmeldung aktiv)
     const currentMeal = getCurrentMeal();
     if (currentMeal) {
       return <MealView key={currentMeal.name} meal={currentMeal} />;
     }
-
-    // Prio 3: Active Slideshow
-    if (slideshow.active && isTimeActive(slideshow.activeUntil)) {
-      return <Slideshow key="slideshow" images={slideshow.images} />;
-    }
     
-    // Prio 4: Fallback Menu Plan
+    // Prio 4: Fallback Speiseplan
     return <MenuPlanView key="menu-plan" />;
   };
   
