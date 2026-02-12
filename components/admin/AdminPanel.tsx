@@ -92,7 +92,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ appData, setAppData }) => {
                 <header className="flex items-center justify-between pb-4 border-b-2 border-gray-200 mb-6">
                      <div className="flex items-center space-x-4">
                         <div className="w-16 h-16 bg-red-600 rounded-lg flex items-center justify-center">
-                            <img src="/assets/drk-logo-white.svg" alt="DRK Logo" className="h-10"/>
+                            <img src="assets/drk-logo-white.svg" alt="DRK Logo" className="h-10"/>
                         </div>
                         <div>
                             <h1 className="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
