@@ -18,7 +18,7 @@ const BottomBar: React.FC<BottomBarProps> = ({ weather, quote }) => {
         <p className="font-semibold text-gray-700 text-center truncate" style={{ fontSize: 'clamp(0.8rem, 2.2vmin, 1.5rem)', lineHeight: '1.2' }}>"{quote}"</p>
       </div>
       <div className="flex-shrink-0">
-        <img src="assets/drk-logo.png" alt="Deutsches Rotes Kreuz Logo" className="h-[4.5vmin] min-h-[30px] max-h-[50px]" />
+        <img src="/assets/drk-logo.png" alt="Deutsches Rotes Kreuz Logo" className="h-[4.5vmin] min-h-[30px] max-h-[50px]" />
       </div>
     </div>
   );

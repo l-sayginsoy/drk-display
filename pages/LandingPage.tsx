@@ -18,7 +18,7 @@ const LandingPage: React.FC = () => {
     <div className="w-screen h-screen bg-gray-100 flex flex-col items-center justify-center">
       <div className="text-center">
         <div className="flex items-center justify-center space-x-4 mb-12">
-            <img src="assets/drk-logo.png" alt="DRK Logo" className="h-20"/>
+            <img src="/assets/drk-logo.png" alt="DRK Logo" className="h-20"/>
             <h1 className="text-5xl font-bold text-gray-800">DRK Melm Dashboard</h1>
         </div>
         <div className="space-x-4">

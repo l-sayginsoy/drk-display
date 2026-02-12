@@ -20,7 +20,7 @@ const Slideshow: React.FC<SlideshowProps> = ({ images }) => {
   if (!images || images.length === 0) {
     // Fallback to a default view if no images are available
     return (
-        <ContentContainer key="no-slides" imageUrl="assets/Speiseplan.jpg">
+        <ContentContainer key="no-slides" imageUrl="/assets/Speiseplan.jpg">
              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                 <p className="text-white text-2xl">Keine Bilder in der Diashow vorhanden.</p>
              </div>
