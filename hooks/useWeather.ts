@@ -13,6 +13,7 @@ const mapApiWeatherToWeatherType = (main: string): WeatherType => {
   if (lowerMain.includes('clear')) return 'sunny';
   if (lowerMain.includes('thunderstorm')) return 'stormy';
   if (lowerMain.includes('rain') || lowerMain.includes('drizzle')) return 'rainy';
+  if (lowerMain.includes('snow')) return 'snow';
   if (lowerMain.includes('clouds') || lowerMain.includes('fog') || lowerMain.includes('mist')) return 'cloudy';
   return 'cloudy';
 };
