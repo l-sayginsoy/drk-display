@@ -5,21 +5,20 @@ import { UrgentMessage, Meal, SlideshowData } from '../types';
 import Slideshow from './Slideshow';
 import MenuPlanView from './MenuPlanView';
 
+// Props for the main component
 interface FocusViewProps {
   urgentMessage: UrgentMessage;
   meals: Meal[];
   slideshow: SlideshowData;
 }
 
+// Reusable container with animation
 interface ContentContainerProps {
     children?: React.ReactNode;
     imageUrl: string;
-    key: string;
 }
-
-export const ContentContainer: React.FC<ContentContainerProps> = ({ children, imageUrl, key }) => (
+export const ContentContainer: React.FC<ContentContainerProps> = ({ children, imageUrl }) => (
     <motion.div
-      key={key}
       className="absolute inset-0 bg-cover bg-center"
       style={{ backgroundImage: `url(${imageUrl})` }}
       initial={{ opacity: 0, scale: 1.02 }}
@@ -31,6 +30,22 @@ export const ContentContainer: React.FC<ContentContainerProps> = ({ children, im
     </motion.div>
 );
 
+// --- Sub-components for cleaner animation logic ---
+
+const UrgentMessageView: React.FC<{ message: UrgentMessage }> = ({ message }) => (
+    <ContentContainer imageUrl={message.imageUrl}>
+        <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center p-8">
+            <h1 className="font-black text-red-500 drop-shadow-lg" style={{ fontSize: 'clamp(1.8rem, 5vmin, 3.5rem)' }}>{message.title}</h1>
+            <p className="mt-[1vh] drop-shadow-lg" style={{ fontSize: 'clamp(1.1rem, 3vmin, 2rem)' }}>{message.text}</p>
+        </div>
+    </ContentContainer>
+);
+
+const MealView: React.FC<{ meal: Meal }> = ({ meal }) => (
+    <ContentContainer imageUrl={meal.imageUrl} />
+);
+
+// --- Main Component ---
 
 const FocusView: React.FC<FocusViewProps> = ({ urgentMessage, meals, slideshow }) => {
   const { hour, minute } = useTime();
@@ -56,48 +71,34 @@ const FocusView: React.FC<FocusViewProps> = ({ urgentMessage, meals, slideshow }
     return null;
   };
   
-  const currentMeal = getCurrentMeal();
-
   const renderContent = () => {
     // Prio 1: Urgent Message
     if (urgentMessage.active && isTimeActive(urgentMessage.activeUntil)) {
-      return (
-        <ContentContainer key="urgent" imageUrl={urgentMessage.imageUrl}>
-          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center p-8">
-            <h1 className="font-black text-red-500 drop-shadow-lg" style={{ fontSize: 'clamp(1.8rem, 5vmin, 3.5rem)' }}>{urgentMessage.title}</h1>
-            <p className="mt-[1vh] drop-shadow-lg" style={{ fontSize: 'clamp(1.1rem, 3vmin, 2rem)' }}>{urgentMessage.text}</p>
-          </div>
-        </ContentContainer>
-      );
+      return <UrgentMessageView key="urgent" message={urgentMessage} />;
     }
 
-    // Prio 2: Active Slideshow
-    if (slideshow.active && isTimeActive(slideshow.activeUntil)) {
-        return <Slideshow images={slideshow.images} />;
-    }
-
-    // Prio 3: Meal Time
+    // Prio 2: Meal Time (Corrected Priority)
+    const currentMeal = getCurrentMeal();
     if (currentMeal) {
-      return (
-        <ContentContainer key={currentMeal.name} imageUrl={currentMeal.imageUrl}>
-            {/* Text overlay removed as it's part of the image now */}
-        </ContentContainer>
-      );
+      return <MealView key={currentMeal.name} meal={currentMeal} />;
+    }
+
+    // Prio 3: Active Slideshow
+    if (slideshow.active && isTimeActive(slideshow.activeUntil)) {
+      return <Slideshow key="slideshow" images={slideshow.images} />;
     }
     
     // Prio 4: Fallback Menu Plan
-    return <MenuPlanView />;
-    
+    return <MenuPlanView key="menu-plan" />;
   };
   
   return (
     <div className="w-full h-full relative rounded-3xl overflow-hidden">
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
             {renderContent()}
         </AnimatePresence>
     </div>
   );
 };
-
 
 export default FocusView;
